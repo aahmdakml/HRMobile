@@ -1,0 +1,128 @@
+import 'package:flutter/material.dart';
+import 'package:mobile_app/core/theme/app_colors.dart';
+import 'package:mobile_app/features/home/screens/home_screen.dart';
+import 'package:mobile_app/features/analytics/screens/analytics_screen.dart';
+import 'package:mobile_app/features/attendance/screens/attendance_screen.dart';
+import 'package:mobile_app/features/profile/screens/profile_config_screen.dart';
+
+/// Main Shell - Bottom navigation with 4 tabs
+class MainShell extends StatefulWidget {
+  const MainShell({super.key});
+
+  @override
+  State<MainShell> createState() => _MainShellState();
+}
+
+class _MainShellState extends State<MainShell> {
+  int _currentIndex = 0;
+
+  final List<Widget> _pages = const [
+    HomeScreen(),
+    AnalyticsScreen(),
+    AttendanceScreen(),
+    ProfileConfigScreen(),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: IndexedStack(index: _currentIndex, children: _pages),
+      bottomNavigationBar: _buildBottomNav(),
+    );
+  }
+
+  Widget _buildBottomNav() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(15),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildNavItem(
+                icon: Icons.home_outlined,
+                activeIcon: Icons.home,
+                label: 'Home',
+                index: 0,
+              ),
+              _buildNavItem(
+                icon: Icons.analytics_outlined,
+                activeIcon: Icons.analytics,
+                label: 'Analytics',
+                index: 1,
+              ),
+              _buildNavItem(
+                icon: Icons.access_time_outlined,
+                activeIcon: Icons.access_time_filled,
+                label: 'Attendance',
+                index: 2,
+              ),
+              _buildNavItem(
+                icon: Icons.person_outline,
+                activeIcon: Icons.person,
+                label: 'Profile',
+                index: 3,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem({
+    required IconData icon,
+    required IconData activeIcon,
+    required String label,
+    required int index,
+  }) {
+    final isActive = _currentIndex == index;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _currentIndex = index;
+        });
+      },
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isActive
+              ? AppColors.primary.withAlpha(20)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isActive ? activeIcon : icon,
+              color: isActive ? AppColors.primary : AppColors.textMuted,
+              size: 22,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                color: isActive ? AppColors.primary : AppColors.textMuted,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
