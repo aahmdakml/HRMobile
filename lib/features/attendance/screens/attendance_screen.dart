@@ -118,7 +118,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             // ========== A. HEADER SECTION ==========
             _buildHeader(),
 
-            const SizedBox(height: 32),
+            // No spacing - clock directly under header
 
             // ========== B. TIME SECTION ==========
             const LiveClock(),
@@ -145,11 +145,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             const SizedBox(height: 32),
 
             // ========== E. ACTION SECTION ==========
-            AttendanceButton(
-              action: _selectedAction,
-              isEnabled: _isSecurityValid &&
-                  _currentStatus != AttendanceStatus.shiftEnded,
-              onComplete: _onAttendanceComplete,
+            Center(
+              child: AttendanceButton(
+                action: _selectedAction,
+                isEnabled: _isSecurityValid &&
+                    _currentStatus != AttendanceStatus.shiftEnded,
+                onComplete: _onAttendanceComplete,
+              ),
             ),
 
             const Spacer(),

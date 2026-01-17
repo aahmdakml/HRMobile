@@ -61,7 +61,7 @@ class _LiveClockState extends State<LiveClock> {
             Text(
               _formatHour(_now.hour),
               style: theme.textTheme.headlineLarge?.copyWith(
-                fontSize: 64,
+                fontSize: 80,
                 fontWeight: FontWeight.w200,
                 letterSpacing: -2,
               ),
@@ -73,7 +73,7 @@ class _LiveClockState extends State<LiveClock> {
               child: Text(
                 ':',
                 style: theme.textTheme.headlineLarge?.copyWith(
-                  fontSize: 64,
+                  fontSize: 80,
                   fontWeight: FontWeight.w200,
                 ),
               ),
@@ -82,7 +82,7 @@ class _LiveClockState extends State<LiveClock> {
             Text(
               _formatMinute(_now.minute),
               style: theme.textTheme.headlineLarge?.copyWith(
-                fontSize: 64,
+                fontSize: 80,
                 fontWeight: FontWeight.w200,
                 letterSpacing: -2,
               ),
@@ -93,7 +93,7 @@ class _LiveClockState extends State<LiveClock> {
               child: Text(
                 _formatSecond(_now.second),
                 style: theme.textTheme.headlineMedium?.copyWith(
-                  fontSize: 24,
+                  fontSize: 32,
                   fontWeight: FontWeight.w300,
                   color: theme.textTheme.bodyMedium?.color,
                 ),

@@ -32,11 +32,11 @@ class _AttendanceButtonState extends State<AttendanceButton>
     with TickerProviderStateMixin {
   late AnimationController _progressController;
   late AnimationController _scaleController;
-  late AnimationController _shakeController;
+  late AnimationController _cancelPulseController;
 
   late Animation<double> _progressAnimation;
   late Animation<double> _scaleAnimation;
-  late Animation<double> _shakeAnimation;
+  late Animation<double> _cancelPulseAnimation;
 
   Timer? _hapticTimer;
   double _lastHapticProgress = 0;
@@ -63,14 +63,19 @@ class _AttendanceButtonState extends State<AttendanceButton>
       CurvedAnimation(parent: _scaleController, curve: Curves.easeOut),
     );
 
-    // Shake animation
-    _shakeController = AnimationController(
-      duration: const Duration(milliseconds: 500),
+    // Cancel pulse animation (scale down then up)
+    _cancelPulseController = AnimationController(
+      duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-    _shakeAnimation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _shakeController, curve: Curves.elasticOut),
-    );
+    _cancelPulseAnimation = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.85), weight: 50),
+      TweenSequenceItem(tween: Tween(begin: 0.85, end: 1.05), weight: 30),
+      TweenSequenceItem(tween: Tween(begin: 1.05, end: 1.0), weight: 20),
+    ]).animate(CurvedAnimation(
+      parent: _cancelPulseController,
+      curve: Curves.easeOut,
+    ));
 
     // Listen for completion
     _progressController.addStatusListener((status) {
@@ -87,7 +92,7 @@ class _AttendanceButtonState extends State<AttendanceButton>
   void dispose() {
     _progressController.dispose();
     _scaleController.dispose();
-    _shakeController.dispose();
+    _cancelPulseController.dispose();
     _hapticTimer?.cancel();
     super.dispose();
   }
@@ -105,13 +110,13 @@ class _AttendanceButtonState extends State<AttendanceButton>
 
   void _onPressStart() {
     if (!widget.isEnabled) {
-      _triggerShake();
-      HapticFeedback.vibrate();
+      _triggerCancelPulse();
+      _hapticFail();
       return;
     }
 
     _lastHapticProgress = 0;
-    HapticFeedback.lightImpact();
+    _hapticStart();
     _scaleController.forward();
     _progressController.forward(from: 0);
   }
@@ -122,23 +127,49 @@ class _AttendanceButtonState extends State<AttendanceButton>
     _scaleController.reverse();
 
     if (_progressController.isAnimating) {
-      // Released too early - shake and vibrate
+      // Released too early - pulse and fail haptic
       _progressController.stop();
       _progressController.reset();
-      _triggerShake();
-      HapticFeedback.vibrate();
+      _triggerCancelPulse();
+      _hapticFail();
     }
   }
 
   void _onComplete() {
-    HapticFeedback.heavyImpact();
+    _hapticSuccess();
     _scaleController.reverse();
     _progressController.reset();
     widget.onComplete?.call();
   }
 
-  void _triggerShake() {
-    _shakeController.forward(from: 0);
+  // ============ HAPTIC PATTERNS ============
+
+  /// Start haptic: Medium tap to indicate hold started
+  void _hapticStart() {
+    HapticFeedback.mediumImpact();
+  }
+
+  /// Fail haptic: Double quick vibration (longer delay)
+  void _hapticFail() {
+    HapticFeedback.vibrate();
+    Future.delayed(const Duration(milliseconds: 150), () {
+      HapticFeedback.vibrate();
+    });
+  }
+
+  /// Success haptic: Triple vibration celebration
+  void _hapticSuccess() {
+    HapticFeedback.vibrate();
+    Future.delayed(const Duration(milliseconds: 150), () {
+      HapticFeedback.vibrate();
+      Future.delayed(const Duration(milliseconds: 150), () {
+        HapticFeedback.vibrate();
+      });
+    });
+  }
+
+  void _triggerCancelPulse() {
+    _cancelPulseController.forward(from: 0);
   }
 
   Color get _buttonColor {
@@ -158,22 +189,18 @@ class _AttendanceButtonState extends State<AttendanceButton>
 
   @override
   Widget build(BuildContext context) {
-    const double size = 150;
+    const double size = 200;
 
     return AnimatedBuilder(
-      animation: Listenable.merge([_scaleAnimation, _shakeAnimation]),
+      animation: Listenable.merge([_scaleAnimation, _cancelPulseAnimation]),
       builder: (context, child) {
-        // Calculate shake offset
-        final shakeOffset = _shakeAnimation.value *
-            10 *
-            ((_shakeController.value * 10).floor() % 2 == 0 ? 1 : -1);
+        // Apply both scale animations
+        final combinedScale =
+            _scaleAnimation.value * _cancelPulseAnimation.value;
 
-        return Transform.translate(
-          offset: Offset(shakeOffset, 0),
-          child: Transform.scale(
-            scale: _scaleAnimation.value,
-            child: child,
-          ),
+        return Transform.scale(
+          scale: combinedScale,
+          child: child,
         );
       },
       child: GestureDetector(
