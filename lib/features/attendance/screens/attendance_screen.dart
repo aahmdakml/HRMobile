@@ -113,112 +113,147 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: Column(
-          children: [
-            // ========== A. HEADER SECTION ==========
-            _buildHeader(),
-
-            // No spacing - clock directly under header
-
-            // ========== B. TIME SECTION ==========
-            const LiveClock(),
-
-            const SizedBox(height: 24),
-
-            // ========== C. STATUS SECTION ==========
-            StatusBadge(
-              status: _currentStatus,
-              sinceTime: _checkInTime,
+        child: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: MediaQuery.of(context).size.height -
+                  MediaQuery.of(context).padding.top -
+                  MediaQuery.of(context).padding.bottom -
+                  kBottomNavigationBarHeight,
             ),
+            child: IntrinsicHeight(
+              child: Column(
+                children: [
+                  // ========== A. HEADER SECTION ==========
+                  _buildHeader(),
 
-            const Spacer(),
+                  // ========== A2. SECURITY CLUSTER ==========
+                  _buildSecurityCluster(),
 
-            // ========== D. SELECTION SECTION ==========
-            if (_currentStatus != AttendanceStatus.shiftEnded)
-              AttendanceTypeSelector(
-                selectedAction: _selectedAction,
-                currentStatus: _currentStatus,
-                onActionSelected: _onActionSelected,
-                isEnabled: _isSecurityValid,
+                  // ========== B. TIME SECTION ==========
+                  const LiveClock(),
+
+                  const SizedBox(height: 24),
+
+                  // ========== C. STATUS SECTION ==========
+                  StatusBadge(
+                    status: _currentStatus,
+                    sinceTime: _checkInTime,
+                  ),
+
+                  const Spacer(),
+
+                  // ========== D. SELECTION SECTION ==========
+                  if (_currentStatus != AttendanceStatus.shiftEnded)
+                    AttendanceTypeSelector(
+                      selectedAction: _selectedAction,
+                      currentStatus: _currentStatus,
+                      onActionSelected: _onActionSelected,
+                      isEnabled: _isSecurityValid,
+                    ),
+
+                  const SizedBox(height: 32),
+
+                  // ========== E. ACTION SECTION ==========
+                  Center(
+                    child: AttendanceButton(
+                      action: _selectedAction,
+                      isEnabled: _isSecurityValid &&
+                          _currentStatus != AttendanceStatus.shiftEnded,
+                      onComplete: _onAttendanceComplete,
+                    ),
+                  ),
+
+                  const Spacer(),
+
+                  // ========== F. FOOTER SECTION ==========
+                  AttendanceFooter(
+                    checkInTime: _checkInTime,
+                    checkOutTime: _checkOutTime,
+                    status: _currentStatus,
+                  ),
+
+                  const SizedBox(height: 8),
+                ],
               ),
-
-            const SizedBox(height: 32),
-
-            // ========== E. ACTION SECTION ==========
-            Center(
-              child: AttendanceButton(
-                action: _selectedAction,
-                isEnabled: _isSecurityValid &&
-                    _currentStatus != AttendanceStatus.shiftEnded,
-                onComplete: _onAttendanceComplete,
-              ),
             ),
-
-            const Spacer(),
-
-            // ========== F. FOOTER SECTION ==========
-            AttendanceFooter(
-              checkInTime: _checkInTime,
-              checkOutTime: _checkOutTime,
-              status: _currentStatus,
-            ),
-
-            const SizedBox(height: 24),
-          ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      child: Column(
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(10),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
         children: [
-          // Title
-          Text(
-            'Attendance',
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+          const SizedBox(width: 40), // Spacer for alignment
+          Expanded(
+            child: Text(
+              'Attendance',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(width: 40), // Spacer for alignment
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSecurityCluster() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Location Pill
+          SecurityPill.location(
+            locationName: 'Surabaya',
+            isValid: _isLocationValid,
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(width: 8),
 
-          // Security Cluster
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Location Pill
-              SecurityPill.location(
-                locationName: 'Surabaya',
-                isValid: _isLocationValid,
+          // Network Pill
+          SecurityPill.network(
+            networkName: 'Office WiFi',
+            isValid: _isNetworkValid,
+          ),
+
+          const SizedBox(width: 8),
+
+          // Refresh Button
+          GestureDetector(
+            onTap: _onRefresh,
+            child: Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: AppColors.border.withAlpha(50),
+                shape: BoxShape.circle,
               ),
-
-              const SizedBox(width: 8),
-
-              // Network Pill
-              SecurityPill.network(
-                networkName: 'Office WiFi',
-                isValid: _isNetworkValid,
+              child: Icon(
+                Icons.refresh,
+                color: AppColors.textSecondary,
+                size: 18,
               ),
-
-              const SizedBox(width: 8),
-
-              // Refresh Button
-              IconButton(
-                onPressed: _onRefresh,
-                icon: Icon(
-                  Icons.refresh,
-                  color: AppColors.textMuted,
-                  size: 20,
-                ),
-                style: IconButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  padding: const EdgeInsets.all(8),
-                ),
-              ),
-            ],
+            ),
           ),
         ],
       ),
