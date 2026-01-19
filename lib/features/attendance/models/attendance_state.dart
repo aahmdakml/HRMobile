@@ -1,4 +1,5 @@
 /// Attendance state enums and models
+library;
 
 /// Current attendance status of the employee
 enum AttendanceStatus {
