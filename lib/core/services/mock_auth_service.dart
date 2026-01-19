@@ -1,3 +1,5 @@
+import 'package:mobile_app/core/services/auth_state.dart';
+
 /// Mock Authentication Service for development
 /// Replace with real API calls when backend is ready
 class MockAuthService {
@@ -24,10 +26,20 @@ class MockAuthService {
     await Future.delayed(const Duration(milliseconds: 1500));
 
     if (email.toLowerCase() == _validEmail && password == _validPassword) {
+      final user = User.fromJson(_mockUser);
+      final token = 'mock_token_${DateTime.now().millisecondsSinceEpoch}';
+
+      // Update global auth state
+      authState.login(
+        email: user.email,
+        name: user.name,
+        token: token,
+      );
+
       return AuthResult(
         success: true,
-        user: User.fromJson(_mockUser),
-        token: 'mock_token_${DateTime.now().millisecondsSinceEpoch}',
+        user: user,
+        token: token,
         message: 'Login successful',
       );
     } else {
@@ -43,13 +55,12 @@ class MockAuthService {
   /// Simulate logout
   static Future<void> logout() async {
     await Future.delayed(const Duration(milliseconds: 500));
-    // Clear stored token, etc.
+    authState.logout();
   }
 
-  /// Check if user is logged in (mock)
+  /// Check if user is logged in
   static Future<bool> isLoggedIn() async {
-    // In real app, check stored token
-    return false;
+    return authState.hasValidSession;
   }
 }
 
