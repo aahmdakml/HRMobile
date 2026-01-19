@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mobile_app/core/theme/app_colors.dart';
 import 'package:mobile_app/features/home/screens/home_screen.dart';
 import 'package:mobile_app/features/analytics/screens/analytics_screen.dart';
@@ -25,10 +26,66 @@ class _MainShellState extends State<MainShell> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: IndexedStack(index: _currentIndex, children: _pages),
-      bottomNavigationBar: _buildBottomNav(),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+
+        // If not on home tab, go to home first
+        if (_currentIndex != 0) {
+          setState(() => _currentIndex = 0);
+          return;
+        }
+
+        // Show exit confirmation dialog
+        final shouldExit = await _showExitConfirmation();
+        if (shouldExit == true && context.mounted) {
+          SystemNavigator.pop();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: IndexedStack(index: _currentIndex, children: _pages),
+        bottomNavigationBar: _buildBottomNav(),
+      ),
+    );
+  }
+
+  Future<bool?> _showExitConfirmation() {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.exit_to_app, color: AppColors.warning, size: 24),
+            const SizedBox(width: 10),
+            const Text('Exit App'),
+          ],
+        ),
+        content: const Text(
+          'Are you sure you want to exit the application?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text('Exit', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
     );
   }
 
@@ -98,9 +155,8 @@ class _MainShellState extends State<MainShell> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: isActive
-              ? AppColors.primary.withAlpha(20)
-              : Colors.transparent,
+          color:
+              isActive ? AppColors.primary.withAlpha(20) : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(

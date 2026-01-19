@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_app/core/theme/app_colors.dart';
 import 'package:mobile_app/core/constants/asset_paths.dart';
+import 'package:mobile_app/core/services/auth_state.dart';
 import 'package:mobile_app/features/auth/screens/login_screen.dart';
+import 'package:mobile_app/features/main/main_shell.dart';
 
-/// Splash Screen with animated logo and smooth fade transition
-/// Design: Green background → Logo centered → Fade to login
+/// Splash Screen with animated logo
+/// Checks auth state and navigates accordingly
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -22,7 +24,7 @@ class _SplashScreenState extends State<SplashScreen>
   void initState() {
     super.initState();
     _initAnimations();
-    _startAnimationSequence();
+    _startSequence();
   }
 
   void _initAnimations() {
@@ -35,30 +37,41 @@ class _SplashScreenState extends State<SplashScreen>
       CurvedAnimation(parent: _logoController, curve: Curves.easeOutBack),
     );
 
-    _logoFadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(parent: _logoController, curve: Curves.easeIn));
+    _logoFadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _logoController, curve: Curves.easeIn),
+    );
   }
 
-  void _startAnimationSequence() async {
-    await Future.delayed(const Duration(milliseconds: 300));
-    _logoController.forward();
+  void _startSequence() {
+    // Start animation immediately
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _logoController.forward();
+        // Navigate after animation
+        Future.delayed(const Duration(milliseconds: 2000), () {
+          if (mounted) {
+            _navigateToNextScreen();
+          }
+        });
+      }
+    });
+  }
 
-    // Wait for logo animation + pause
-    await Future.delayed(const Duration(milliseconds: 2000));
+  void _navigateToNextScreen() {
+    // Check if user is logged in
+    final isLoggedIn = authState.hasValidSession;
 
-    if (mounted) {
-      _navigateToLogin();
+    Widget nextScreen;
+    if (isLoggedIn) {
+      nextScreen = const MainShell();
+    } else {
+      nextScreen = const LoginScreen();
     }
-  }
 
-  void _navigateToLogin() {
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            const LoginScreen(),
-        transitionDuration: const Duration(milliseconds: 500),
+        pageBuilder: (context, animation, secondaryAnimation) => nextScreen,
+        transitionDuration: const Duration(milliseconds: 400),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(opacity: animation, child: child);
         },
@@ -91,7 +104,6 @@ class _SplashScreenState extends State<SplashScreen>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Logo container
               Container(
                 width: 120,
                 height: 120,
@@ -110,7 +122,6 @@ class _SplashScreenState extends State<SplashScreen>
                 child: Image.asset(AssetPaths.logo, fit: BoxFit.contain),
               ),
               const SizedBox(height: 20),
-              // App name
               const Text(
                 'Saraswanti',
                 style: TextStyle(

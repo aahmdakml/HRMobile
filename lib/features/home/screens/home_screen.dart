@@ -18,6 +18,12 @@ class _HomeScreenState extends State<HomeScreen> {
   // Featured module IDs (user customizable)
   List<String> _featuredModuleIds = List.from(HrisModules.defaultFeaturedIds);
 
+  // Height constants for layout calculation
+  static const double _headerHeight = 80;
+  static const double _featuredHeight = 300; // Height of featured section
+  static const double _overlapAmount =
+      120; // How much white overlaps into featured
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -27,32 +33,50 @@ class _HomeScreenState extends State<HomeScreen> {
         child: SingleChildScrollView(
           child: Column(
             children: [
-              // Dark Section (Header + Featured)
-              Container(
-                color: const Color(0xFF1E1E2D),
-                child: Column(
-                  children: [_buildHeader(context), _buildFeaturedSection()],
-                ),
+              // Stack for overlap effect - white section behind featured
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  // White background (positioned behind, but overlapping)
+                  Positioned(
+                    top: _headerHeight + _featuredHeight - _overlapAmount,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      height: _overlapAmount + 50, // Extra height for visual
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(28),
+                          topRight: Radius.circular(28),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Dark content (Header + Featured) - on top
+                  Column(
+                    children: [
+                      _buildHeader(context),
+                      _buildFeaturedSection(),
+                    ],
+                  ),
+                ],
               ),
 
-              // White Content Section
+              // White Content Section (continues from overlap)
               Container(
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(24),
-                    topRight: Radius.circular(24),
-                  ),
-                ),
+                width: double.infinity,
+                color: Colors.white,
                 child: Padding(
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildModulesSection(),
                       const SizedBox(height: 24),
                       _buildRecentActivity(),
-                      const SizedBox(height: 100), // Extra space for bottom nav
+                      const SizedBox(height: 100),
                     ],
                   ),
                 ),
@@ -72,9 +96,9 @@ class _HomeScreenState extends State<HomeScreen> {
           // Profile Avatar
           GestureDetector(
             onTap: () {
-              Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (_) => const ProfileScreen()));
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ProfileScreen()),
+              );
             },
             child: Container(
               width: 48,
@@ -124,9 +148,9 @@ class _HomeScreenState extends State<HomeScreen> {
           // Settings
           GestureDetector(
             onTap: () {
-              Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SettingsScreen()),
+              );
             },
             child: Container(
               width: 44,
@@ -154,7 +178,7 @@ class _HomeScreenState extends State<HomeScreen> {
         .toList();
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -168,11 +192,11 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 14),
 
-          // Featured Cards Grid - Larger layout
+          // Featured Cards Grid
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Large Card (first module) - Taller
+              // Large Card (first module)
               Expanded(
                 flex: 5,
                 child: _buildLargeFeaturedCard(
@@ -180,7 +204,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(width: 12),
-              // Right Column (2 smaller cards)
+              // Right Column (2 smaller cards + CUSTOMIZE button)
               Expanded(
                 flex: 4,
                 child: Column(
@@ -188,68 +212,60 @@ class _HomeScreenState extends State<HomeScreen> {
                     _buildSmallFeaturedCard(
                       featuredModules.length > 1 ? featuredModules[1] : null,
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     _buildSmallFeaturedCard(
                       featuredModules.length > 2 ? featuredModules[2] : null,
                     ),
+                    const SizedBox(height: 10),
+                    // CUSTOMIZE Button - in same column
+                    _buildCustomizeButton(),
                   ],
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 8), // Space before white section - compact
+        ],
+      ),
+    );
+  }
 
-          const SizedBox(height: 16),
-
-          // Edit Button
-          Center(
-            child: GestureDetector(
-              onTap: () async {
-                final result = await Navigator.of(context).push<List<String>>(
-                  MaterialPageRoute(
-                    builder: (_) => EditFeaturedScreen(
-                      currentFeaturedIds: _featuredModuleIds,
-                    ),
-                  ),
-                );
-                if (result != null) {
-                  setState(() {
-                    _featuredModuleIds = result;
-                  });
-                }
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withAlpha(15),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: Colors.white.withAlpha(30)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.edit_outlined,
-                      size: 16,
-                      color: Colors.white.withAlpha(200),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Customize Quick Access',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white.withAlpha(200),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+  Widget _buildCustomizeButton() {
+    return GestureDetector(
+      onTap: () async {
+        final result = await Navigator.of(context).push<List<String>>(
+          MaterialPageRoute(
+            builder: (_) => EditFeaturedScreen(
+              currentFeaturedIds: _featuredModuleIds,
             ),
           ),
-        ],
+        );
+        if (result != null) {
+          setState(() {
+            _featuredModuleIds = result;
+          });
+        }
+      },
+      child: Container(
+        width: double.infinity,
+        height: 42, // Height to align bottom with large card
+        decoration: BoxDecoration(
+          color: const Color.fromARGB(81, 82, 82, 82).withAlpha(100),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+              color: const Color.fromARGB(255, 255, 255, 255).withAlpha(100)),
+        ),
+        child: const Center(
+          child: Text(
+            'CUSTOMIZE',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: Color.fromARGB(255, 255, 255, 255),
+              letterSpacing: 0.5,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -260,16 +276,16 @@ class _HomeScreenState extends State<HomeScreen> {
     return GestureDetector(
       onTap: () => _onModuleTap(module),
       child: Container(
-        height: 180, // Taller card
+        height: 222,
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
           color: module.color,
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: module.color.withAlpha(80),
-              blurRadius: 12,
-              offset: const Offset(0, 6),
+              color: module.color.withAlpha(60),
+              blurRadius: 6,
+              offset: const Offset(0, 3),
             ),
           ],
         ),
@@ -308,12 +324,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildSmallFeaturedCard(ModuleItem? module) {
-    if (module == null) return const SizedBox(height: 84);
+    if (module == null) return const SizedBox(height: 80);
 
     return GestureDetector(
       onTap: () => _onModuleTap(module),
       child: Container(
-        height: 84, // Taller small cards too
+        height: 80,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: module.color,
@@ -368,7 +384,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildModulesSection() {
-    const displayCount = 7; // Show 7 + More button = 8 slots
+    const displayCount = 7;
     final modulesToShow = HrisModules.allModules.take(displayCount).toList();
 
     return Column(
@@ -436,9 +452,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildMoreItem() {
     return GestureDetector(
       onTap: () {
-        Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (_) => const AllModulesScreen()));
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const AllModulesScreen()),
+        );
       },
       child: Column(
         mainAxisSize: MainAxisSize.min,
