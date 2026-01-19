@@ -1,9 +1,112 @@
 import 'package:flutter/material.dart';
-import 'package:mobile_app/core/theme/app_colors.dart';
+import '../../../core/theme/app_colors.dart';
+import '../models/attendance_state.dart';
+import '../widgets/security_pill.dart';
+import '../widgets/live_clock.dart';
+import '../widgets/status_badge.dart';
+import '../widgets/attendance_type_selector.dart';
+import '../widgets/attendance_button.dart';
+import '../widgets/attendance_footer.dart';
 
-/// Attendance Screen - Clock in/out and history
-class AttendanceScreen extends StatelessWidget {
+/// Main Attendance Screen
+/// Layout: Header > Time > Status > Selector > Button > Footer
+class AttendanceScreen extends StatefulWidget {
   const AttendanceScreen({super.key});
+
+  @override
+  State<AttendanceScreen> createState() => _AttendanceScreenState();
+}
+
+class _AttendanceScreenState extends State<AttendanceScreen> {
+  // ============ HARDCODED STATE (for frontend-first development) ============
+
+  // Security status (mocked)
+  bool _isLocationValid = true;
+  bool _isNetworkValid = true;
+
+  // Attendance state
+  AttendanceStatus _currentStatus = AttendanceStatus.idle;
+  AttendanceAction _selectedAction = AttendanceAction.checkIn;
+
+  // Times (mocked)
+  String? _checkInTime;
+  String? _checkOutTime;
+
+  // ============ SMART DEFAULT LOGIC ============
+
+  AttendanceAction _getSmartDefault() {
+    switch (_currentStatus) {
+      case AttendanceStatus.idle:
+        return AttendanceAction.checkIn;
+      case AttendanceStatus.working:
+        return AttendanceAction.checkOut;
+      case AttendanceStatus.onBreak:
+        return AttendanceAction.resume;
+      case AttendanceStatus.shiftEnded:
+        return AttendanceAction.checkIn; // Shouldn't happen
+    }
+  }
+
+  bool get _isSecurityValid => _isLocationValid && _isNetworkValid;
+
+  // ============ ACTIONS ============
+
+  void _onRefresh() {
+    // Mocked refresh - toggle security for demo
+    setState(() {
+      // In real app, this would check GPS and WiFi
+      _isLocationValid = true;
+      _isNetworkValid = true;
+    });
+  }
+
+  void _onActionSelected(AttendanceAction action) {
+    setState(() {
+      _selectedAction = action;
+    });
+  }
+
+  void _onAttendanceComplete() {
+    // Handle the attendance action
+    setState(() {
+      switch (_selectedAction) {
+        case AttendanceAction.checkIn:
+          _currentStatus = AttendanceStatus.working;
+          _checkInTime = _getCurrentTime();
+          _selectedAction = _getSmartDefault();
+          break;
+        case AttendanceAction.breakOut:
+          _currentStatus = AttendanceStatus.onBreak;
+          _selectedAction = _getSmartDefault();
+          break;
+        case AttendanceAction.resume:
+          _currentStatus = AttendanceStatus.working;
+          _selectedAction = _getSmartDefault();
+          break;
+        case AttendanceAction.checkOut:
+          _currentStatus = AttendanceStatus.shiftEnded;
+          _checkOutTime = _getCurrentTime();
+          break;
+      }
+    });
+
+    // Show success feedback
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${_selectedAction.label} successful!'),
+        backgroundColor: AppColors.checkIn,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  String _getCurrentTime() {
+    final now = DateTime.now();
+    return '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+  }
+
+  // ============ BUILD ============
 
   @override
   Widget build(BuildContext context) {
@@ -12,30 +115,56 @@ class AttendanceScreen extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-            // Header
+            // ========== A. HEADER SECTION ==========
             _buildHeader(),
 
-            // Content
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Clock In/Out Card
-                    _buildClockCard(context),
-                    const SizedBox(height: 20),
+            // ========== A2. SECURITY CLUSTER ==========
+            _buildSecurityCluster(),
 
-                    // Today's Schedule
-                    _buildScheduleCard(),
-                    const SizedBox(height: 20),
+            // ========== B. TIME SECTION ==========
+            const LiveClock(),
 
-                    // Recent Attendance History
-                    _buildHistorySection(),
-                  ],
-                ),
+            const SizedBox(height: 12),
+
+            // ========== C. STATUS SECTION ==========
+            StatusBadge(
+              status: _currentStatus,
+              sinceTime: _checkInTime,
+            ),
+
+            const Spacer(),
+
+            // ========== D. SELECTION SECTION ==========
+            if (_currentStatus != AttendanceStatus.shiftEnded)
+              AttendanceTypeSelector(
+                selectedAction: _selectedAction,
+                currentStatus: _currentStatus,
+                onActionSelected: _onActionSelected,
+                isEnabled: _isSecurityValid,
+              ),
+
+            const SizedBox(height: 16),
+
+            // ========== E. ACTION SECTION ==========
+            Center(
+              child: AttendanceButton(
+                action: _selectedAction,
+                isEnabled: _isSecurityValid &&
+                    _currentStatus != AttendanceStatus.shiftEnded,
+                onComplete: _onAttendanceComplete,
               ),
             ),
+
+            const Spacer(),
+
+            // ========== F. FOOTER SECTION ==========
+            AttendanceFooter(
+              checkInTime: _checkInTime,
+              checkOutTime: _checkOutTime,
+              status: _currentStatus,
+            ),
+
+            const SizedBox(height: 8),
           ],
         ),
       ),
@@ -57,7 +186,7 @@ class AttendanceScreen extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const SizedBox(width: 40),
+          const SizedBox(width: 40), // Spacer for alignment
           Expanded(
             child: Text(
               'Attendance',
@@ -69,400 +198,53 @@ class AttendanceScreen extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
           ),
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: AppColors.border.withAlpha(50),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.history,
-              color: AppColors.textSecondary,
-              size: 22,
-            ),
-          ),
+          const SizedBox(width: 40), // Spacer for alignment
         ],
       ),
     );
   }
 
-  Widget _buildClockCard(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppColors.primary, AppColors.primary.withAlpha(180)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        children: [
-          // Time Display
-          Text(
-            _getCurrentTime(),
-            style: const TextStyle(
-              fontSize: 48,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          Text(
-            _getCurrentDate(),
-            style: TextStyle(fontSize: 14, color: Colors.white.withAlpha(200)),
-          ),
-          const SizedBox(height: 24),
-
-          // Clock In/Out Buttons
-          Row(
-            children: [
-              Expanded(
-                child: _buildClockButton(
-                  label: 'Clock In',
-                  icon: Icons.login,
-                  isActive: true,
-                  onTap: () {
-                    _showClockDialog(context, isClockIn: true);
-                  },
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildClockButton(
-                  label: 'Clock Out',
-                  icon: Icons.logout,
-                  isActive: false,
-                  onTap: () {
-                    _showClockDialog(context, isClockIn: false);
-                  },
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildClockButton({
-    required String label,
-    required IconData icon,
-    required bool isActive,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          color: isActive ? Colors.white : Colors.white.withAlpha(30),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              color: isActive ? AppColors.primary : Colors.white,
-              size: 20,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: isActive ? AppColors.primary : Colors.white,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showClockDialog(BuildContext context, {required bool isClockIn}) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(isClockIn ? 'Clock In' : 'Clock Out'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              isClockIn ? Icons.login : Icons.logout,
-              size: 64,
-              color: AppColors.primary,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              isClockIn
-                  ? 'Clock in at ${_getCurrentTime()}?'
-                  : 'Clock out at ${_getCurrentTime()}?',
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    isClockIn
-                        ? 'Clocked in successfully!'
-                        : 'Clocked out successfully!',
-                  ),
-                  backgroundColor: AppColors.success,
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Confirm'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildScheduleCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Today\'s Schedule',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withAlpha(20),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  'Regular',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _buildTimeSlot(
-                  'Shift Start',
-                  '08:00 AM',
-                  Icons.wb_sunny_outlined,
-                ),
-              ),
-              Container(width: 1, height: 40, color: AppColors.border),
-              Expanded(
-                child: _buildTimeSlot(
-                  'Shift End',
-                  '05:00 PM',
-                  Icons.nights_stay_outlined,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTimeSlot(String label, String time, IconData icon) {
+  Widget _buildSecurityCluster() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 20, color: AppColors.textMuted),
+          // Location Pill
+          SecurityPill.location(
+            locationName: 'Surabaya',
+            isValid: _isLocationValid,
+          ),
+
           const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
-              ),
-              Text(
-                time,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildHistorySection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Recent History',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                // TODO: View all history
-              },
-              child: Text(
-                'View All',
-                style: TextStyle(fontSize: 13, color: AppColors.primary),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        _buildHistoryItem('Today', '08:30 AM', '---', 'Present'),
-        _buildHistoryItem('Yesterday', '08:25 AM', '05:15 PM', 'Present'),
-        _buildHistoryItem('Mon, 13 Jan', '08:45 AM', '05:30 PM', 'Late'),
-      ],
-    );
-  }
+          // Network Pill
+          SecurityPill.network(
+            networkName: 'Office WiFi',
+            isValid: _isNetworkValid,
+          ),
 
-  Widget _buildHistoryItem(
-    String date,
-    String clockIn,
-    String clockOut,
-    String status,
-  ) {
-    Color statusColor;
-    switch (status) {
-      case 'Present':
-        statusColor = AppColors.success;
-        break;
-      case 'Late':
-        statusColor = AppColors.warning;
-        break;
-      case 'Absent':
-        statusColor = AppColors.error;
-        break;
-      default:
-        statusColor = AppColors.textMuted;
-    }
+          const SizedBox(width: 8),
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 2,
-            child: Text(
-              date,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: AppColors.textPrimary,
+          // Refresh Button
+          GestureDetector(
+            onTap: _onRefresh,
+            child: Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: AppColors.border.withAlpha(50),
+                shape: BoxShape.circle,
               ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              clockIn,
-              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          Expanded(
-            child: Text(
-              clockOut,
-              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: statusColor.withAlpha(20),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              status,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-                color: statusColor,
+              child: Icon(
+                Icons.refresh,
+                color: AppColors.textSecondary,
+                size: 18,
               ),
             ),
           ),
         ],
       ),
     );
-  }
-
-  String _getCurrentTime() {
-    final now = DateTime.now();
-    final hour = now.hour > 12 ? now.hour - 12 : now.hour;
-    final period = now.hour >= 12 ? 'PM' : 'AM';
-    return '${hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')} $period';
-  }
-
-  String _getCurrentDate() {
-    final now = DateTime.now();
-    final days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    final months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return '${days[now.weekday % 7]}, ${now.day} ${months[now.month - 1]} ${now.year}';
   }
 }

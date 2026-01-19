@@ -46,4 +46,11 @@ class AppColors {
     end: Alignment.bottomRight,
     colors: [primary, primaryDark],
   );
+
+  // Attendance Colors (reusing existing palette)
+  static const Color checkIn = primary; // Saraswanti Green
+  static const Color breakOut = Color(0xFFFF9100); // Orange
+  static const Color resume = info; // Info Blue
+  static const Color checkOut = error; // Error Red
+  static const Color disabled = textMuted; // Muted Grey
 }
