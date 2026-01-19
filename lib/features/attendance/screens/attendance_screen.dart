@@ -113,71 +113,59 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minHeight: MediaQuery.of(context).size.height -
-                  MediaQuery.of(context).padding.top -
-                  MediaQuery.of(context).padding.bottom -
-                  kBottomNavigationBarHeight,
+        child: Column(
+          children: [
+            // ========== A. HEADER SECTION ==========
+            _buildHeader(),
+
+            // ========== A2. SECURITY CLUSTER ==========
+            _buildSecurityCluster(),
+
+            // ========== B. TIME SECTION ==========
+            const LiveClock(),
+
+            const SizedBox(height: 12),
+
+            // ========== C. STATUS SECTION ==========
+            StatusBadge(
+              status: _currentStatus,
+              sinceTime: _checkInTime,
             ),
-            child: IntrinsicHeight(
-              child: Column(
-                children: [
-                  // ========== A. HEADER SECTION ==========
-                  _buildHeader(),
 
-                  // ========== A2. SECURITY CLUSTER ==========
-                  _buildSecurityCluster(),
+            const Spacer(),
 
-                  // ========== B. TIME SECTION ==========
-                  const LiveClock(),
+            // ========== D. SELECTION SECTION ==========
+            if (_currentStatus != AttendanceStatus.shiftEnded)
+              AttendanceTypeSelector(
+                selectedAction: _selectedAction,
+                currentStatus: _currentStatus,
+                onActionSelected: _onActionSelected,
+                isEnabled: _isSecurityValid,
+              ),
 
-                  const SizedBox(height: 24),
+            const SizedBox(height: 16),
 
-                  // ========== C. STATUS SECTION ==========
-                  StatusBadge(
-                    status: _currentStatus,
-                    sinceTime: _checkInTime,
-                  ),
-
-                  const Spacer(),
-
-                  // ========== D. SELECTION SECTION ==========
-                  if (_currentStatus != AttendanceStatus.shiftEnded)
-                    AttendanceTypeSelector(
-                      selectedAction: _selectedAction,
-                      currentStatus: _currentStatus,
-                      onActionSelected: _onActionSelected,
-                      isEnabled: _isSecurityValid,
-                    ),
-
-                  const SizedBox(height: 32),
-
-                  // ========== E. ACTION SECTION ==========
-                  Center(
-                    child: AttendanceButton(
-                      action: _selectedAction,
-                      isEnabled: _isSecurityValid &&
-                          _currentStatus != AttendanceStatus.shiftEnded,
-                      onComplete: _onAttendanceComplete,
-                    ),
-                  ),
-
-                  const Spacer(),
-
-                  // ========== F. FOOTER SECTION ==========
-                  AttendanceFooter(
-                    checkInTime: _checkInTime,
-                    checkOutTime: _checkOutTime,
-                    status: _currentStatus,
-                  ),
-
-                  const SizedBox(height: 8),
-                ],
+            // ========== E. ACTION SECTION ==========
+            Center(
+              child: AttendanceButton(
+                action: _selectedAction,
+                isEnabled: _isSecurityValid &&
+                    _currentStatus != AttendanceStatus.shiftEnded,
+                onComplete: _onAttendanceComplete,
               ),
             ),
-          ),
+
+            const Spacer(),
+
+            // ========== F. FOOTER SECTION ==========
+            AttendanceFooter(
+              checkInTime: _checkInTime,
+              checkOutTime: _checkOutTime,
+              status: _currentStatus,
+            ),
+
+            const SizedBox(height: 8),
+          ],
         ),
       ),
     );
