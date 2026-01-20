@@ -1,0 +1,195 @@
+# English translations - Base locale
+# Keys match enterprise-frontend i18n and database menu_heading
+
+# App-wide strings
+app:
+  name: HRIS Mobile
+  tagline: Employee Self Service
+
+# Common actions
+common:
+  cancel: Cancel
+  save: Save
+  delete: Delete
+  edit: Edit
+  add: Add
+  back: Back
+  close: Close
+  search: Search
+  refresh: Refresh
+  loading: Loading...
+  success: Success
+  error: Error
+  tapToOpen: Tap to open
+  comingSoon: Coming soon
+  noData: No data available
+
+# Module names (matching database menu_heading)
+module:
+  # Dashboard
+  dashboard: Dashboard
+  
+  # HRIS Main
+  attendance: Attendance
+  employee: Employee
+  payroll: Payroll
+  reports: Reports
+  approval: Approval
+  recruitment: Recruitment
+  organization: Organization
+  masterPayroll: Master Payroll
+  
+  # Attendance related
+  clockIn: Clock In
+  clockOut: Clock Out
+  leave: Leave
+  permission: Permission
+  leaveAndPermission: Leave & Permission
+  overtime: Overtime
+  publicHolidays: Holidays & Collective Leave
+  timeOffManagement: Time Off Management
+  leaveBalance: Leave Balance
+  travelOrder: Travel Order
+  
+  # Payroll related
+  payslip: Payslip
+  processPayroll: Process Payroll
+  payrollSummary: Payroll Summary
+  payrollCorrection: Payroll Correction
+  payrollLoan: Payroll Loan
+  paySlipComponent: Pay Slip Component
+  importsOvertime: Imports Overtime
+  employeeSalaryComponent: Employee Component
+  companyComponent: Company Component
+  masterBpjs: Master BPJS
+  masterBpjsCompany: Master BPJS Company
+  masterAttendanceDeduction: Attendance Deduction
+  myPersonalInfo: My Personal Info
+  
+  # Reports
+  reportsPayrollSummary: Reports Payroll Summary
+  reportsPayrollSlipEmployee: Reports Payroll Slip
+  reportsPayrollRecapitulation: Payroll Recapitulation
+  reportsAttendance: Reports Attendance
+  reportsSam: Reports Attendance 2
+  reportPayrollTr: Report Payroll TR
+  reportsEmployeeStatus: Employee Status Report
+  
+  # Approval
+  approvalTravelOrder: Approval Travel Order
+  
+  # Employee
+  information: Information
+  survey: Survey
+  onBoarding: Onboarding
+  employeeLetter: Employee Letter
+  profile: Profile
+  
+  # Finance
+  loan: Loan
+  loanArchive: Loan List
+  reimburse: Reimbursement
+  reimbursementBalance: Reimbursement Balance
+  
+  # Travel
+  travel: Travel
+  
+  # Master
+  masterMenu: Master Menu
+  masterRole: Master Role
+  masterRoleMenu: Master Role Menu
+  masterUser: Master User
+  masterOption: Master Option
+  masterPasswordMenuCompany: Password Menu Company
+  
+  # Archive
+  archiveDocument: Archive Document
+  loanArchiveForm: Loan Archive Form
+  masterArchiveLocation: Master Location Archive
+  masterDocument: Master Document
+  portalDocument: Portal Document
+  
+  # Recruitment
+  manPowerPlanning: Man Power Planning
+  requestMpp: Request MPP
+  approveMpp: Approve MPP
+  loadMpp: Load MPP
+  
+  # Organization
+  directorate: Directorate
+  subDirectorate: Sub Directorate
+  department: Department
+  subDepartment: Sub Department
+  section: Section
+  unit: Unit
+  position: Position
+  organizationChart: Organization Chart
+  empOrgMapping: Employee Org Mapping
+
+# Profile section
+profile:
+  title: Profile
+  personalData: Personal Data
+  address: Address
+  contact: Contact
+  family: Family
+  education: Education
+  emergencyContact: Emergency Contact
+  employmentData: Employment Data
+  attendanceHistory: Attendance History
+  loanHistory: Loan History
+  salaryHistory: Salary History
+  supportingFile: Supporting File
+
+# Auth
+auth:
+  login: Sign In
+  logout: Sign Out
+  forgotPassword: Forgot Password
+  changePassword: Change Password
+  resetPassword: Reset Password
+  email: Email
+  password: Password
+  confirmPassword: Confirm Password
+  rememberMe: Remember Me
+
+# Settings
+settings:
+  title: Settings
+  account: Account
+  notifications: Notifications
+  language: Language
+  theme: Theme
+  darkMode: Dark Mode
+  about: About
+  version: Version
+  privacy: Privacy Policy
+  terms: Terms of Service
+  help: Help & Support
+
+# Home screen
+home:
+  greeting:
+    morning: Good Morning!
+    afternoon: Good Afternoon!
+    evening: Good Evening!
+  quickAccess: Quick Access
+  modules: Modules
+  recentActivity: Recent Activity
+  customize: Customize
+  viewAll: View All
+  allModules: All Modules
+
+# Attendance
+attendance:
+  title: Attendance
+  clockIn: Clock In
+  clockOut: Clock Out
+  history: History
+  today: Today
+  present: Present
+  absent: Absent
+  late: Late
+  early: Early Leave
+  workingHours: Working Hours
+  location: Location

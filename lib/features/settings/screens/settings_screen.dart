@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_app/core/theme/app_colors.dart';
+import 'package:mobile_app/core/services/auth_service.dart';
+import 'package:mobile_app/core/services/app_preferences.dart';
+import 'package:mobile_app/i18n/translations.dart';
 import 'package:mobile_app/features/auth/screens/login_screen.dart';
 import 'package:mobile_app/features/settings/screens/change_password_screen.dart';
 
@@ -12,7 +15,6 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  bool _darkMode = false;
   bool _notifications = true;
 
   @override
@@ -74,36 +76,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 20),
 
             // Preferences Section
-            _buildSectionTitle('Preferences'),
+            _buildSectionTitle(t.settings.title),
             _buildSettingsCard([
-              _buildSettingsItemWithSwitch(
-                icon: Icons.dark_mode_outlined,
-                title: 'Dark Mode',
-                value: _darkMode,
-                onChanged: (value) {
-                  setState(() => _darkMode = value);
-                  _showInfoSnackbar(
-                    'Dark mode ${value ? 'enabled' : 'disabled'} (coming soon)',
-                  );
-                },
-              ),
               _buildSettingsItem(
-                icon: Icons.language_outlined,
-                title: 'Language',
+                icon: Icons.palette_outlined,
+                title: t.settings.theme,
                 trailing: Text(
-                  'English',
+                  appPreferences.getThemeModeDisplayName(),
                   style: TextStyle(
                     fontSize: 14,
                     color: AppColors.textSecondary,
                   ),
                 ),
-                onTap: () {
-                  _showLanguageDialog();
-                },
+                onTap: () => _showThemeModeDialog(),
+              ),
+              _buildSettingsItem(
+                icon: Icons.language_outlined,
+                title: t.settings.language,
+                trailing: Text(
+                  appPreferences.getLocaleDisplayName(),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                onTap: () => _showLanguageDialog(),
               ),
               _buildSettingsItemWithSwitch(
                 icon: Icons.notifications_outlined,
-                title: 'Notifications',
+                title: t.settings.notifications,
                 value: _notifications,
                 onChanged: (value) {
                   setState(() => _notifications = value);
@@ -227,8 +228,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         title,
         style: TextStyle(fontSize: 14, color: AppColors.textPrimary),
       ),
-      trailing:
-          trailing ??
+      trailing: trailing ??
           Icon(Icons.chevron_right, color: AppColors.textMuted, size: 20),
       onTap: onTap,
     );
@@ -275,38 +275,81 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _showLanguageDialog() {
+  void _showThemeModeDialog() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Select Language'),
+        title: Text(t.settings.theme),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildLanguageOption('English', true),
-            _buildLanguageOption('Bahasa Indonesia', false),
+            _buildThemeOption('Light', ThemeMode.light),
+            _buildThemeOption('Dark', ThemeMode.dark),
+            _buildThemeOption('System', ThemeMode.system),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+            child: Text(t.common.close),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildLanguageOption(String language, bool isSelected) {
+  Widget _buildThemeOption(String label, ThemeMode mode) {
+    final isSelected = appPreferences.themeMode == mode;
+    return ListTile(
+      title: Text(label),
+      trailing: isSelected
+          ? Icon(Icons.check_circle, color: AppColors.primary)
+          : null,
+      onTap: () async {
+        await appPreferences.setThemeMode(mode);
+        if (!mounted) return;
+        Navigator.pop(context);
+        setState(() {}); // Refresh UI
+      },
+    );
+  }
+
+  void _showLanguageDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(t.settings.language),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildLanguageOption('English', const Locale('en')),
+            _buildLanguageOption('Indonesia', const Locale('id')),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(t.common.close),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLanguageOption(String language, Locale locale) {
+    final isSelected = appPreferences.locale == locale;
     return ListTile(
       title: Text(language),
       trailing: isSelected
           ? Icon(Icons.check_circle, color: AppColors.primary)
           : null,
-      onTap: () {
+      onTap: () async {
+        await appPreferences.setLocale(locale);
+        if (!mounted) return;
         Navigator.pop(context);
-        _showInfoSnackbar('Language set to $language (coming soon)');
+        setState(() {}); // Refresh UI to show new locale
       },
     );
   }
@@ -374,10 +417,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context); // Close dialog
-              // Navigate to login and clear stack
-              Navigator.of(context).pushAndRemoveUntil(
+            onPressed: () async {
+              // Capture navigator to avoid using popped context after await
+              final navigator = Navigator.of(context);
+              navigator.pop(); // Close dialog
+
+              // Call logout service to clear tokens
+              await AuthService.logout();
+
+              // Navigate to login and clear stack using captured navigator
+              navigator.pushAndRemoveUntil(
                 MaterialPageRoute(builder: (_) => const LoginScreen()),
                 (route) => false,
               );

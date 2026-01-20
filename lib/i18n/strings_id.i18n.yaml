@@ -1,0 +1,195 @@
+# Indonesian translations
+# Keys match enterprise-frontend i18n and database menu_heading
+
+# App-wide strings
+app:
+  name: HRIS Mobile
+  tagline: Layanan Mandiri Karyawan
+
+# Common actions
+common:
+  cancel: Batal
+  save: Simpan
+  delete: Hapus
+  edit: Ubah
+  add: Tambah
+  back: Kembali
+  close: Tutup
+  search: Cari
+  refresh: Refresh
+  loading: Memuat...
+  success: Berhasil
+  error: Kesalahan
+  tapToOpen: Ketuk untuk buka
+  comingSoon: Segera hadir
+  noData: Tidak ada data
+
+# Module names (matching database menu_heading)
+module:
+  # Dashboard
+  dashboard: Dasbor
+  
+  # HRIS Main
+  attendance: Kehadiran
+  employee: Karyawan
+  payroll: Penggajian
+  reports: Laporan
+  approval: Persetujuan
+  recruitment: Rekrutmen
+  organization: Organisasi
+  masterPayroll: Master Penggajian
+  
+  # Attendance related
+  clockIn: Masuk
+  clockOut: Pulang
+  leave: Cuti
+  permission: Izin
+  leaveAndPermission: Cuti & Izin
+  overtime: Lembur
+  publicHolidays: Libur & Cuti Bersama
+  timeOffManagement: Manajemen Izin
+  leaveBalance: Saldo Cuti
+  travelOrder: Perjalanan Dinas
+  
+  # Payroll related
+  payslip: Slip Gaji
+  processPayroll: Proses Payroll
+  payrollSummary: Ringkasan Penggajian
+  payrollCorrection: Koreksi Penggajian
+  payrollLoan: Pinjaman Payroll
+  paySlipComponent: Komponen Slip Gaji
+  importsOvertime: Impor Lembur
+  employeeSalaryComponent: Komponen Karyawan
+  companyComponent: Komponen Perusahaan
+  masterBpjs: Master BPJS
+  masterBpjsCompany: Master BPJS Perusahaan
+  masterAttendanceDeduction: Potongan Absensi
+  myPersonalInfo: Info Pribadi Saya
+  
+  # Reports
+  reportsPayrollSummary: Laporan Ringkasan Penggajian
+  reportsPayrollSlipEmployee: Laporan Slip Gaji
+  reportsPayrollRecapitulation: Rekapitulasi Gaji
+  reportsAttendance: Laporan Kehadiran
+  reportsSam: Laporan Kehadiran 2
+  reportPayrollTr: Laporan Payroll TR
+  reportsEmployeeStatus: Laporan Status Karyawan
+  
+  # Approval
+  approvalTravelOrder: Persetujuan SPPD
+  
+  # Employee
+  information: Informasi
+  survey: Survey
+  onBoarding: Orientasi
+  employeeLetter: Surat Karyawan
+  profile: Profil
+  
+  # Finance
+  loan: Pinjaman
+  loanArchive: Daftar Pinjaman
+  reimburse: Pengembalian
+  reimbursementBalance: Saldo Reimbursement
+  
+  # Travel
+  travel: Perjalanan
+  
+  # Master
+  masterMenu: Menu Master
+  masterRole: Peran Master
+  masterRoleMenu: Peran Menu Master
+  masterUser: Pengguna Master
+  masterOption: Master Option
+  masterPasswordMenuCompany: Password Menu Perusahaan
+  
+  # Archive
+  archiveDocument: Dokumen Arsip
+  loanArchiveForm: Peminjaman Arsip
+  masterArchiveLocation: Master Lokasi Arsip
+  masterDocument: Dokumen Master
+  portalDocument: Portal Dokumen
+  
+  # Recruitment
+  manPowerPlanning: Perencanaan Tenaga Kerja
+  requestMpp: Permintaan MPP
+  approveMpp: Persetujuan MPP
+  loadMpp: Muat MPP
+  
+  # Organization
+  directorate: Direktorat
+  subDirectorate: Sub Direktorat
+  department: Departemen
+  subDepartment: Sub Departemen
+  section: Seksi
+  unit: Unit
+  position: Jabatan
+  organizationChart: Struktur Organisasi
+  empOrgMapping: Pemetaan Org Karyawan
+
+# Profile section
+profile:
+  title: Profil
+  personalData: Data Pribadi
+  address: Alamat
+  contact: Kontak
+  family: Keluarga
+  education: Pendidikan
+  emergencyContact: Kontak Darurat
+  employmentData: Data Kepegawaian
+  attendanceHistory: Riwayat Kehadiran
+  loanHistory: Riwayat Pinjaman
+  salaryHistory: Riwayat Gaji
+  supportingFile: File Pendukung
+
+# Auth
+auth:
+  login: Masuk
+  logout: Keluar
+  forgotPassword: Lupa Password
+  changePassword: Ubah Password
+  resetPassword: Reset Password
+  email: Email
+  password: Password
+  confirmPassword: Konfirmasi Password
+  rememberMe: Ingat Saya
+
+# Settings
+settings:
+  title: Pengaturan
+  account: Akun
+  notifications: Notifikasi
+  language: Bahasa
+  theme: Tema
+  darkMode: Mode Gelap
+  about: Tentang
+  version: Versi
+  privacy: Kebijakan Privasi
+  terms: Syarat & Ketentuan
+  help: Bantuan & Dukungan
+
+# Home screen
+home:
+  greeting:
+    morning: Selamat Pagi!
+    afternoon: Selamat Siang!
+    evening: Selamat Malam!
+  quickAccess: Akses Cepat
+  modules: Modul
+  recentActivity: Aktivitas Terbaru
+  customize: Kustomisasi
+  viewAll: Lihat Semua
+  allModules: Semua Modul
+
+# Attendance
+attendance:
+  title: Kehadiran
+  clockIn: Masuk
+  clockOut: Pulang
+  history: Riwayat
+  today: Hari Ini
+  present: Hadir
+  absent: Tidak Hadir
+  late: Terlambat
+  early: Pulang Awal
+  workingHours: Jam Kerja
+  location: Lokasi
