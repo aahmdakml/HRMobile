@@ -11,7 +11,7 @@ class MockAuthService {
     'id': 1,
     'name': 'Admin User',
     'email': 'admin@user.com',
-    'emp_id': 'EMP001',
+    'emp_id': '601120045',
     'position': 'Software Developer',
     'department': 'IT',
     'avatar': null,
@@ -34,6 +34,7 @@ class MockAuthService {
         email: user.email,
         name: user.name,
         token: token,
+        userData: user.toJson(),
       );
 
       return AuthResult(

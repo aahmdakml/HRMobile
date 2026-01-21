@@ -28,16 +28,13 @@ class _AttendanceTypeSelectorState extends State<AttendanceTypeSelector> {
 
   /// Get available actions based on current status
   List<AttendanceAction> get _availableActions {
-    switch (widget.currentStatus) {
-      case AttendanceStatus.idle:
-        return [AttendanceAction.checkIn];
-      case AttendanceStatus.working:
-        return [AttendanceAction.breakOut, AttendanceAction.checkOut];
-      case AttendanceStatus.onBreak:
-        return [AttendanceAction.resume, AttendanceAction.checkOut];
-      case AttendanceStatus.shiftEnded:
-        return []; // No actions available
-    }
+    // Manual mode: Show all actions
+    return [
+      AttendanceAction.checkIn,
+      AttendanceAction.breakOut,
+      AttendanceAction.resume,
+      AttendanceAction.checkOut,
+    ];
   }
 
   Color _getColorForAction(AttendanceAction action) {

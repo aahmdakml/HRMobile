@@ -10,22 +10,26 @@ class AuthState extends ChangeNotifier {
   String? _userEmail;
   String? _userName;
   String? _token;
+  Map<String, dynamic>? _userData;
 
   bool get isLoggedIn => _isLoggedIn;
   String? get userEmail => _userEmail;
   String? get userName => _userName;
   String? get token => _token;
+  Map<String, dynamic>? get user => _userData;
 
   /// Call after successful login
   void login({
     required String email,
     required String name,
     required String token,
+    Map<String, dynamic>? userData,
   }) {
     _isLoggedIn = true;
     _userEmail = email;
     _userName = name;
     _token = token;
+    _userData = userData;
     notifyListeners();
   }
 

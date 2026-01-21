@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 
 /// A live clock widget with blinking colon animation
 class LiveClock extends StatefulWidget {
-  const LiveClock({super.key});
+  final DateTime? serverTime;
+
+  const LiveClock({super.key, this.serverTime});
 
   @override
   State<LiveClock> createState() => _LiveClockState();
@@ -12,18 +14,38 @@ class LiveClock extends StatefulWidget {
 class _LiveClockState extends State<LiveClock> {
   late Timer _timer;
   DateTime _now = DateTime.now();
+  Duration _timeOffset = Duration.zero;
   bool _colonVisible = true;
 
   @override
   void initState() {
     super.initState();
+    _updateOffset();
+
     // Update every 500ms to handle colon blinking
     _timer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
       setState(() {
-        _now = DateTime.now();
+        _now = DateTime.now().add(_timeOffset);
         _colonVisible = !_colonVisible;
       });
     });
+  }
+
+  @override
+  void didUpdateWidget(LiveClock oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.serverTime != oldWidget.serverTime) {
+      _updateOffset();
+    }
+  }
+
+  void _updateOffset() {
+    if (widget.serverTime != null) {
+      // Calculate difference between server time and current local time
+      _timeOffset = widget.serverTime!.difference(DateTime.now());
+      // Immediately update _now
+      _now = DateTime.now().add(_timeOffset);
+    }
   }
 
   @override
@@ -62,8 +84,9 @@ class _LiveClockState extends State<LiveClock> {
               _formatHour(_now.hour),
               style: theme.textTheme.headlineLarge?.copyWith(
                 fontSize: 80,
-                fontWeight: FontWeight.w200,
+                fontWeight: FontWeight.w300,
                 letterSpacing: -2,
+                color: theme.textTheme.headlineLarge?.color?.withOpacity(0.8),
               ),
             ),
             // Blinking colon
@@ -74,7 +97,7 @@ class _LiveClockState extends State<LiveClock> {
                 ':',
                 style: theme.textTheme.headlineLarge?.copyWith(
                   fontSize: 80,
-                  fontWeight: FontWeight.w200,
+                  fontWeight: FontWeight.w300,
                 ),
               ),
             ),
@@ -83,8 +106,9 @@ class _LiveClockState extends State<LiveClock> {
               _formatMinute(_now.minute),
               style: theme.textTheme.headlineLarge?.copyWith(
                 fontSize: 80,
-                fontWeight: FontWeight.w200,
+                fontWeight: FontWeight.w300,
                 letterSpacing: -2,
+                color: theme.textTheme.headlineLarge?.color?.withOpacity(0.8),
               ),
             ),
             // Seconds (smaller)
