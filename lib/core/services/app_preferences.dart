@@ -21,14 +21,24 @@ class AppPreferences extends ChangeNotifier {
   bool _isInitialized = false;
 
   // Getters
-  ThemeMode get themeMode => _themeMode;
+  /// Returns effective theme mode for MaterialApp
+  /// When user selects 'System', we force Light mode (per user request)
+  ThemeMode get themeMode {
+    if (_themeMode == ThemeMode.system) {
+      return ThemeMode.light; // Force light for system setting
+    }
+    return _themeMode;
+  }
+
   Locale get locale => _locale;
   bool get isInitialized => _isInitialized;
 
   /// Get actual brightness (resolves system mode)
   Brightness get brightness {
     if (_themeMode == ThemeMode.system) {
-      return SchedulerBinding.instance.platformDispatcher.platformBrightness;
+      // Force Light mode as default for System setting (per user request)
+      return Brightness.light;
+      // return SchedulerBinding.instance.platformDispatcher.platformBrightness;
     }
     return _themeMode == ThemeMode.dark ? Brightness.dark : Brightness.light;
   }
