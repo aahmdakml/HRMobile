@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_app/core/theme/app_colors.dart';
-import 'package:mobile_app/core/models/module_item.dart';
+import 'package:mobile_app/core/config/role_menu_config.dart';
+import 'package:mobile_app/i18n/translations.dart';
 
 /// Edit Featured Screen - Customize quick access modules
+/// Uses RoleMenuConfig for accessible modules
 class EditFeaturedScreen extends StatefulWidget {
   final List<String> currentFeaturedIds;
 
@@ -14,11 +16,13 @@ class EditFeaturedScreen extends StatefulWidget {
 
 class _EditFeaturedScreenState extends State<EditFeaturedScreen> {
   late List<String> _selectedIds;
+  late List<StaffModule> _accessibleModules;
 
   @override
   void initState() {
     super.initState();
     _selectedIds = List.from(widget.currentFeaturedIds);
+    _accessibleModules = RoleMenuConfig.getAccessibleModules();
   }
 
   @override
@@ -33,7 +37,7 @@ class _EditFeaturedScreenState extends State<EditFeaturedScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Edit Quick Access',
+          'Edit ${t.home.quickAccess}',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w600,
@@ -45,7 +49,7 @@ class _EditFeaturedScreenState extends State<EditFeaturedScreen> {
           TextButton(
             onPressed: _canSave ? _saveAndClose : null,
             child: Text(
-              'Save',
+              t.common.save,
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
@@ -120,9 +124,9 @@ class _EditFeaturedScreenState extends State<EditFeaturedScreen> {
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: HrisModules.allModules.length,
+              itemCount: _accessibleModules.length,
               itemBuilder: (context, index) {
-                final module = HrisModules.allModules[index];
+                final module = _accessibleModules[index];
                 final isSelected = _selectedIds.contains(module.id);
                 final canSelect = _selectedIds.length < 3 || isSelected;
 
@@ -137,7 +141,7 @@ class _EditFeaturedScreenState extends State<EditFeaturedScreen> {
 
   bool get _canSave => _selectedIds.length == 3;
 
-  Widget _buildModuleItem(ModuleItem module, bool isSelected, bool canSelect) {
+  Widget _buildModuleItem(StaffModule module, bool isSelected, bool canSelect) {
     return GestureDetector(
       onTap: () {
         if (isSelected) {
@@ -163,12 +167,12 @@ class _EditFeaturedScreenState extends State<EditFeaturedScreen> {
         ),
         child: Row(
           children: [
-            // Module Icon
+            // Module Icon with unique color
             Container(
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: module.color.withAlpha(20),
+                color: module.lightColor,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(module.icon, color: module.color, size: 24),

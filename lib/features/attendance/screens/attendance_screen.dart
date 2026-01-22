@@ -95,7 +95,9 @@ class _AttendanceScreenState extends State<AttendanceScreen>
 
     // For test mode: use emp_id from auth state (mock service)
     // In real app this would come from the user profile
-    final empId = authState.user?['emp_id'];
+    // For test mode: use emp_id from auth state (mock service)
+    // In real app this would come from the user profile
+    final empId = authState.empId;
     if (empId != null) {
       AttendanceApiService.setEmpId(empId.toString());
     }
@@ -276,9 +278,9 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     try {
       final info = NetworkInfo();
       final bssid = await info.getWifiBSSID();
-      
+
       print('NETWORK: Connected WiFi BSSID (MAC): $bssid');
-      
+
       if (bssid == null || bssid == '02:00:00:00:00:00') {
         // Not connected to WiFi or permission issue
         setState(() {
@@ -288,20 +290,20 @@ class _AttendanceScreenState extends State<AttendanceScreen>
         print('NETWORK: No WiFi or permission denied');
         return;
       }
-      
+
       // Fetch allowed locations and check MAC
       try {
         final locations = await AttendanceApiService.getLocations();
         bool isValid = false;
         String matchedNetwork = 'Unknown Network';
-        
+
         for (var location in locations) {
           final isEnableMac = location['is_enable_mac'] ?? false;
           if (!isEnableMac) continue;
-          
+
           final macList = location['mac'];
           if (macList == null) continue;
-          
+
           // MAC can be a list or single string
           List<String> allowedMacs = [];
           if (macList is List) {
@@ -309,23 +311,26 @@ class _AttendanceScreenState extends State<AttendanceScreen>
           } else if (macList is String) {
             allowedMacs = [macList];
           }
-          
-          print('NETWORK: Location "${location['location_name']}" allowed MACs: $allowedMacs');
-          
+
+          print(
+              'NETWORK: Location "${location['location_name']}" allowed MACs: $allowedMacs');
+
           if (allowedMacs.contains(bssid)) {
             isValid = true;
-            matchedNetwork = location['location_name']?.toString() ?? 'Office WiFi';
+            matchedNetwork =
+                location['location_name']?.toString() ?? 'Office WiFi';
             print('NETWORK: ✓ MAC matched for $matchedNetwork');
             break;
           }
         }
-        
+
         setState(() {
           _isNetworkValid = isValid;
           _networkName = isValid ? matchedNetwork : 'Unknown Network';
         });
-        
-        print('NETWORK: Validation result: isValid=$isValid, networkName=$_networkName');
+
+        print(
+            'NETWORK: Validation result: isValid=$isValid, networkName=$_networkName');
       } catch (apiError) {
         print('NETWORK: API Error: $apiError');
         setState(() {
@@ -357,8 +362,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     }
   }
 
-  bool get _isSecurityValid =>
-      _isLocationValid && _isNetworkValid;
+  bool get _isSecurityValid => _isLocationValid && _isNetworkValid;
 
   // ============ ACTIONS ============
 
@@ -515,7 +519,6 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                 ),
 
                 const SizedBox(height: 16),
-
               ],
             ),
             // Loading overlay
@@ -617,5 +620,4 @@ class _AttendanceScreenState extends State<AttendanceScreen>
       ),
     );
   }
-
 }

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_app/core/theme/app_colors.dart';
-import 'package:mobile_app/core/services/mock_auth_service.dart';
+import 'package:mobile_app/core/services/auth_service.dart';
+import 'package:mobile_app/core/services/auth_storage.dart';
 import 'package:mobile_app/features/auth/screens/forgot_password_screen.dart';
 import 'package:mobile_app/features/main/main_shell.dart';
+
+import 'package:mobile_app/core/theme/app_theme.dart';
 
 /// Login Screen with email/password fields and proper error handling
 class LoginScreen extends StatefulWidget {
@@ -25,6 +28,22 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _errorMessage;
 
   @override
+  void initState() {
+    super.initState();
+    _loadRememberedEmail();
+  }
+
+  Future<void> _loadRememberedEmail() async {
+    final email = await AuthStorage.getRememberedEmail();
+    if (email != null && mounted) {
+      setState(() {
+        _emailController.text = email;
+        _rememberMe = true;
+      });
+    }
+  }
+
+  @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
@@ -35,45 +54,49 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      resizeToAvoidBottomInset: true,
-      body: SafeArea(
-        child: GestureDetector(
-          onTap: () => FocusScope.of(context).unfocus(),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const SizedBox(height: 32),
-                  _buildLogoSection(),
-                  const SizedBox(height: 32),
-                  Text(
-                    'Sign in to your account',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
+    // Force Light Theme for Login Screen only
+    return Theme(
+      data: AppTheme.lightTheme,
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        resizeToAvoidBottomInset: true,
+        body: SafeArea(
+          child: GestureDetector(
+            onTap: () => FocusScope.of(context).unfocus(),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: 32),
+                    _buildLogoSection(),
+                    const SizedBox(height: 32),
+                    Text(
+                      'Sign in to your account',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 28),
+                    const SizedBox(height: 28),
 
-                  // Error Message
-                  if (_errorMessage != null) _buildErrorBanner(),
+                    // Error Message
+                    if (_errorMessage != null) _buildErrorBanner(),
 
-                  _buildEmailField(),
-                  const SizedBox(height: 14),
-                  _buildPasswordField(),
-                  const SizedBox(height: 10),
-                  _buildOptionsRow(),
-                  const SizedBox(height: 20),
-                  _buildSignInButton(),
-                  const SizedBox(height: 32),
-                ],
+                    _buildEmailField(),
+                    const SizedBox(height: 14),
+                    _buildPasswordField(),
+                    const SizedBox(height: 10),
+                    _buildOptionsRow(),
+                    const SizedBox(height: 20),
+                    _buildSignInButton(),
+                    const SizedBox(height: 32),
+                  ],
+                ),
               ),
             ),
           ),
@@ -173,7 +196,10 @@ class _LoginScreenState extends State<LoginScreen> {
           keyboardType: TextInputType.emailAddress,
           textInputAction: TextInputAction.next,
           enabled: !_isLoading,
-          style: const TextStyle(fontSize: 14),
+          style: const TextStyle(
+            fontSize: 14,
+            color: AppColors.textPrimary, // Force dark color
+          ),
           decoration: InputDecoration(
             hintText: 'Enter your email',
             hintStyle: TextStyle(color: AppColors.textMuted, fontSize: 14),
@@ -236,7 +262,10 @@ class _LoginScreenState extends State<LoginScreen> {
           obscureText: _obscurePassword,
           textInputAction: TextInputAction.done,
           enabled: !_isLoading,
-          style: const TextStyle(fontSize: 14),
+          style: const TextStyle(
+            fontSize: 14,
+            color: AppColors.textPrimary, // Force dark color
+          ),
           decoration: InputDecoration(
             hintText: 'Enter your password',
             hintStyle: TextStyle(color: AppColors.textMuted, fontSize: 14),
@@ -395,71 +424,50 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleSignIn() async {
-    debugPrint('=== LOGIN: _handleSignIn CALLED ===');
-
     // Clear previous error
     setState(() => _errorMessage = null);
 
     // Validate form
-    debugPrint('LOGIN: Validating form...');
     if (!_formKey.currentState!.validate()) {
-      debugPrint('LOGIN: Form validation FAILED');
       return;
     }
-    debugPrint('LOGIN: Form validation PASSED');
 
     final email = _emailController.text.trim();
     final password = _passwordController.text;
-    debugPrint('LOGIN: Email=$email, Password length=${password.length}');
 
     // Show loading
-    debugPrint('LOGIN: Setting loading state...');
     setState(() => _isLoading = true);
 
     try {
-      debugPrint('LOGIN: Calling MockAuthService.login()...');
-      // Call auth service
-      final result = await MockAuthService.login(
+      // Call real auth service
+      final result = await AuthService.login(
         email: email,
         password: password,
+        rememberMe: _rememberMe,
       );
-      debugPrint(
-          'LOGIN: MockAuthService returned - success=${result.success}, message=${result.message}');
 
       // Check if widget is still mounted
-      if (!mounted) {
-        debugPrint('LOGIN: Widget not mounted, returning');
-        return;
-      }
+      if (!mounted) return;
 
       if (result.success) {
-        debugPrint('LOGIN: Login SUCCESS - navigating to MainShell');
-        // TODO: If remember me is checked, save email to storage
-        if (_rememberMe) {
-          // Will implement with shared_preferences later
-        }
-
         // Navigate to main shell
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const MainShell()),
           (route) => false,
         );
-        debugPrint('LOGIN: Navigation initiated');
       } else {
-        debugPrint('LOGIN: Login FAILED - showing error message');
         // Show error message
         setState(() {
           _isLoading = false;
           _errorMessage = result.message;
         });
       }
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('LOGIN ERROR: $e');
-      debugPrint('STACKTRACE:\n$st');
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _errorMessage = 'An unexpected error occurred: $e';
+          _errorMessage = 'Connection error. Please try again.';
         });
       }
     }
