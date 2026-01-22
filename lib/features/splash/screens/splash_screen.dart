@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_app/core/theme/app_colors.dart';
-import 'package:mobile_app/core/constants/asset_paths.dart';
-import 'package:mobile_app/core/services/auth_state.dart';
+import 'package:mobile_app/core/services/auth_service.dart';
 import 'package:mobile_app/features/auth/screens/login_screen.dart';
 import 'package:mobile_app/features/main/main_shell.dart';
 
-/// Splash Screen with animated logo
-/// Checks auth state and navigates accordingly
+/// Splash Screen with animated logo and auth check
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -15,68 +13,85 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen>
-    with TickerProviderStateMixin {
+    with SingleTickerProviderStateMixin {
   late AnimationController _logoController;
-  late Animation<double> _logoScaleAnimation;
-  late Animation<double> _logoFadeAnimation;
+  late Animation<double> _fadeAnimation;
+  late Animation<double> _scaleAnimation;
 
   @override
   void initState() {
     super.initState();
-    _initAnimations();
+    _setupAnimations();
     _startSequence();
   }
 
-  void _initAnimations() {
+  void _setupAnimations() {
     _logoController = AnimationController(
-      duration: const Duration(milliseconds: 1000),
       vsync: this,
+      duration: const Duration(milliseconds: 1200),
     );
 
-    _logoScaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
-      CurvedAnimation(parent: _logoController, curve: Curves.easeOutBack),
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _logoController,
+        curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
+      ),
     );
 
-    _logoFadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _logoController, curve: Curves.easeIn),
+    _scaleAnimation = Tween<double>(begin: 0.7, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _logoController,
+        curve: const Interval(0.0, 0.6, curve: Curves.easeOutBack),
+      ),
     );
   }
 
   void _startSequence() {
-    // Start animation immediately
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _logoController.forward();
-        // Navigate after animation
-        Future.delayed(const Duration(milliseconds: 2000), () {
-          if (mounted) {
-            _navigateToNextScreen();
-          }
-        });
-      }
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+
+      // Start logo animation immediately
+      _logoController.forward();
+
+      // Run auth check and minimum animation time IN PARALLEL
+      final results = await Future.wait([
+        _checkAuth(),
+        Future.delayed(
+            const Duration(milliseconds: 1500)), // Reduced from 2000ms
+      ]);
+
+      final isLoggedIn = results[0] as bool;
+
+      if (!mounted) return;
+
+      // Navigate immediately (no additional delay)
+      final nextScreen = isLoggedIn ? const MainShell() : const LoginScreen();
+
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          pageBuilder: (_, __, ___) => nextScreen,
+          transitionDuration:
+              const Duration(milliseconds: 300), // Faster transition
+          transitionsBuilder: (_, animation, __, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+        ),
+      );
     });
   }
 
-  void _navigateToNextScreen() {
-    // Check if user is logged in
-    final isLoggedIn = authState.hasValidSession;
-
-    Widget nextScreen;
-    if (isLoggedIn) {
-      nextScreen = const MainShell();
-    } else {
-      nextScreen = const LoginScreen();
+  /// Check authentication status
+  Future<bool> _checkAuth() async {
+    try {
+      final hasToken = await AuthService.isLoggedIn();
+      if (hasToken) {
+        return await AuthService.verifyToken();
+      }
+      return false;
+    } catch (e) {
+      debugPrint('SPLASH: Auth check error: $e');
+      return false;
     }
-
-    Navigator.of(context).pushReplacement(
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => nextScreen,
-        transitionDuration: const Duration(milliseconds: 400),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-      ),
-    );
   }
 
   @override
@@ -93,56 +108,76 @@ class _SplashScreenState extends State<SplashScreen>
         child: AnimatedBuilder(
           animation: _logoController,
           builder: (context, child) {
-            return Opacity(
-              opacity: _logoFadeAnimation.value,
-              child: Transform.scale(
-                scale: _logoScaleAnimation.value,
-                child: child,
-              ),
-            );
-          },
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withAlpha(25),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
+            return FadeTransition(
+              opacity: _fadeAnimation,
+              child: ScaleTransition(
+                scale: _scaleAnimation,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Logo Icon
+                    Container(
+                      width: 100,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withAlpha(30),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        Icons.business_center,
+                        size: 50,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // App Name
+                    const Text(
+                      'HRIS',
+                      style: TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        letterSpacing: 4,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Subtitle
+                    Text(
+                      'Human Resource Information System',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white.withAlpha(200),
+                        letterSpacing: 1,
+                      ),
+                    ),
+
+                    const SizedBox(height: 48),
+
+                    // Loading indicator
+                    SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          Colors.white.withAlpha(180),
+                        ),
+                      ),
                     ),
                   ],
                 ),
-                padding: const EdgeInsets.all(16),
-                child: Image.asset(AssetPaths.logo, fit: BoxFit.contain),
               ),
-              const SizedBox(height: 20),
-              const Text(
-                'Saraswanti',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.5,
-                ),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'HRIS',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w300,
-                  letterSpacing: 8,
-                ),
-              ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );

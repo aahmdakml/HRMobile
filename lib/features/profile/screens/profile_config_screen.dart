@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_app/core/theme/app_colors.dart';
+import 'package:mobile_app/core/services/auth_state.dart';
+import 'package:mobile_app/core/services/profile_service.dart';
 
-/// Profile Config Screen - Full profile editing (navbar Profile tab)
-/// Reference: /employee/profile/personal-data
+/// Profile Config Screen - Full profile with API data
+/// Reference: /api/v1/hris/profile/*
 class ProfileConfigScreen extends StatefulWidget {
   const ProfileConfigScreen({super.key});
 
@@ -22,10 +24,73 @@ class _ProfileConfigScreenState extends State<ProfileConfigScreen>
     'Education',
   ];
 
+  // Data state
+  bool _isLoading = true;
+  String? _error;
+  PersonalData? _personalData;
+  List<Address> _addresses = [];
+  List<Contact> _contacts = [];
+  List<Family> _family = [];
+  List<Education> _education = [];
+  List<EmergencyContact> _emergencyContacts = [];
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: _tabs.length, vsync: this);
+    _loadProfileData();
+  }
+
+  Future<void> _loadProfileData() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      // Load all profile sections in parallel
+      final results = await Future.wait([
+        ProfileService.getPersonalData(),
+        ProfileService.getAddresses(),
+        ProfileService.getContacts(),
+        ProfileService.getFamily(),
+        ProfileService.getEducation(),
+        ProfileService.getEmergencyContacts(),
+      ]);
+
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+
+        final personalResult = results[0] as ProfileResult<PersonalData>;
+        if (personalResult.success) _personalData = personalResult.data;
+
+        final addressResult = results[1] as ProfileResult<List<Address>>;
+        if (addressResult.success) _addresses = addressResult.data ?? [];
+
+        final contactResult = results[2] as ProfileResult<List<Contact>>;
+        if (contactResult.success) _contacts = contactResult.data ?? [];
+
+        final familyResult = results[3] as ProfileResult<List<Family>>;
+        if (familyResult.success) _family = familyResult.data ?? [];
+
+        final educationResult = results[4] as ProfileResult<List<Education>>;
+        if (educationResult.success) _education = educationResult.data ?? [];
+
+        final emergencyResult =
+            results[5] as ProfileResult<List<EmergencyContact>>;
+        if (emergencyResult.success)
+          _emergencyContacts = emergencyResult.data ?? [];
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _error = 'Failed to load profile data';
+        });
+      }
+    }
   }
 
   @override
@@ -44,16 +109,20 @@ class _ProfileConfigScreenState extends State<ProfileConfigScreen>
             _buildHeader(),
             _buildTabBar(),
             Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildPersonalTab(),
-                  _buildAddressTab(),
-                  _buildContactTab(),
-                  _buildFamilyTab(),
-                  _buildEducationTab(),
-                ],
-              ),
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _error != null
+                      ? _buildErrorView()
+                      : TabBarView(
+                          controller: _tabController,
+                          children: [
+                            _buildPersonalTab(),
+                            _buildAddressTab(),
+                            _buildContactTab(),
+                            _buildFamilyTab(),
+                            _buildEducationTab(),
+                          ],
+                        ),
             ),
           ],
         ),
@@ -61,7 +130,31 @@ class _ProfileConfigScreenState extends State<ProfileConfigScreen>
     );
   }
 
+  Widget _buildErrorView() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.error_outline, size: 48, color: AppColors.error),
+          const SizedBox(height: 16),
+          Text(_error ?? 'Error loading data'),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _loadProfileData,
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildHeader() {
+    // Get data from authState or loaded personalData
+    final user = authState.user;
+    final name = _personalData?.name ?? user?.displayName ?? 'Loading...';
+    final empId = _personalData?.empId ?? user?.empId ?? '-';
+    final position = user?.employee?.position ?? 'Employee';
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(color: AppColors.primary),
@@ -100,9 +193,9 @@ class _ProfileConfigScreenState extends State<ProfileConfigScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Admin User',
-                      style: TextStyle(
+                    Text(
+                      name,
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
@@ -110,7 +203,7 @@ class _ProfileConfigScreenState extends State<ProfileConfigScreen>
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'EMP001 • Software Developer',
+                      '$empId • $position',
                       style: TextStyle(
                         fontSize: 13,
                         color: Colors.white.withAlpha(200),
@@ -165,56 +258,50 @@ class _ProfileConfigScreenState extends State<ProfileConfigScreen>
   }
 
   Widget _buildPersonalTab() {
+    final data = _personalData;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: _buildEditableCard(
         title: 'Personal Information',
-        onEdit: () {
-          // TODO: Edit personal info
-        },
+        onEdit: () {},
         fields: [
-          _FieldData('Full Name', 'Admin User'),
-          _FieldData('NIK', 'EMP001'),
-          _FieldData('Date of Birth', '15 January 1990'),
-          _FieldData('Place of Birth', 'Jakarta'),
-          _FieldData('Gender', 'Male'),
-          _FieldData('Religion', 'Islam'),
-          _FieldData('Marital Status', 'Married'),
-          _FieldData('Blood Type', 'O'),
+          _FieldData('Full Name', data?.name ?? '-'),
+          _FieldData('NIK', data?.empId ?? '-'),
+          _FieldData('Date of Birth', data?.birthDate ?? '-'),
+          _FieldData('Gender', data?.gender ?? '-'),
+          _FieldData('Religion', data?.religion ?? '-'),
+          _FieldData('Marital Status', data?.maritalStatus ?? '-'),
+          _FieldData('Blood Type', data?.bloodType ?? '-'),
         ],
       ),
     );
   }
 
   Widget _buildAddressTab() {
+    if (_addresses.isEmpty) {
+      return _buildEmptyState('No addresses found', 'Add Address');
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
-        children: [
-          _buildEditableCard(
-            title: 'Current Address',
-            onEdit: () {},
-            fields: [
-              _FieldData('Street', 'Jl. Sudirman No. 123'),
-              _FieldData('RT/RW', '001/002'),
-              _FieldData('Kelurahan', 'Menteng'),
-              _FieldData('Kecamatan', 'Menteng'),
-              _FieldData('City', 'Jakarta Pusat'),
-              _FieldData('Province', 'DKI Jakarta'),
-              _FieldData('Postal Code', '10310'),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _buildEditableCard(
-            title: 'ID Card Address',
-            onEdit: () {},
-            fields: [
-              _FieldData('Street', 'Jl. Sudirman No. 123'),
-              _FieldData('City', 'Jakarta Pusat'),
-              _FieldData('Province', 'DKI Jakarta'),
-            ],
-          ),
-        ],
+        children: _addresses.map((address) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: _buildEditableCard(
+              title: address.type.isNotEmpty ? address.type : 'Address',
+              onEdit: () {},
+              fields: [
+                _FieldData('Address', address.address),
+                if (address.city != null) _FieldData('City', address.city!),
+                if (address.province != null)
+                  _FieldData('Province', address.province!),
+                if (address.postalCode != null)
+                  _FieldData('Postal Code', address.postalCode!),
+              ],
+            ),
+          );
+        }).toList(),
       ),
     );
   }
@@ -224,100 +311,119 @@ class _ProfileConfigScreenState extends State<ProfileConfigScreen>
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          _buildEditableCard(
-            title: 'Contact Information',
-            onEdit: () {},
-            fields: [
-              _FieldData('Phone', '+62 812 3456 7890'),
-              _FieldData('Email', 'admin@user.com'),
-              _FieldData('Emergency Contact', 'John Doe'),
-              _FieldData('Emergency Phone', '+62 812 9876 5432'),
-              _FieldData('Relationship', 'Spouse'),
-            ],
-          ),
+          // Regular contacts
+          if (_contacts.isNotEmpty)
+            _buildEditableCard(
+              title: 'Contact Information',
+              onEdit: () {},
+              fields:
+                  _contacts.map((c) => _FieldData(c.type, c.value)).toList(),
+            ),
+
+          if (_contacts.isNotEmpty && _emergencyContacts.isNotEmpty)
+            const SizedBox(height: 16),
+
+          // Emergency contacts
+          ..._emergencyContacts.map((ec) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _buildEditableCard(
+                  title: 'Emergency Contact',
+                  onEdit: () {},
+                  fields: [
+                    _FieldData('Name', ec.name),
+                    _FieldData('Relationship', ec.relationship),
+                    _FieldData('Phone', ec.phone),
+                    if (ec.address != null) _FieldData('Address', ec.address!),
+                  ],
+                ),
+              )),
+
+          if (_contacts.isEmpty && _emergencyContacts.isEmpty)
+            _buildEmptyState('No contacts found', 'Add Contact'),
         ],
       ),
     );
   }
 
   Widget _buildFamilyTab() {
+    if (_family.isEmpty) {
+      return _buildEmptyState('No family members found', 'Add Family Member');
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          _buildFamilyMemberCard(
-            name: 'Jane Doe',
-            relationship: 'Spouse',
-            birthDate: '20 March 1992',
-          ),
-          const SizedBox(height: 12),
-          _buildFamilyMemberCard(
-            name: 'Baby Doe',
-            relationship: 'Child',
-            birthDate: '10 June 2020',
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () {
-                // TODO: Add family member
-              },
-              icon: const Icon(Icons.add),
-              label: const Text('Add Family Member'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                side: BorderSide(color: AppColors.primary),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+          ..._family.map((member) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _buildFamilyMemberCard(
+                  name: member.name,
+                  relationship: member.relationship,
+                  birthDate: member.birthDate ?? '-',
                 ),
-              ),
-            ),
-          ),
+              )),
+          const SizedBox(height: 8),
+          _buildAddButton('Add Family Member', () {}),
         ],
       ),
     );
   }
 
   Widget _buildEducationTab() {
+    if (_education.isEmpty) {
+      return _buildEmptyState('No education history found', 'Add Education');
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          _buildEducationCard(
-            level: "Bachelor's Degree",
-            institution: 'University of Indonesia',
-            major: 'Computer Science',
-            year: '2008 - 2012',
-          ),
-          const SizedBox(height: 12),
-          _buildEducationCard(
-            level: 'High School',
-            institution: 'SMA Negeri 1 Jakarta',
-            major: 'Science',
-            year: '2005 - 2008',
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () {
-                // TODO: Add education
-              },
-              icon: const Icon(Icons.add),
-              label: const Text('Add Education'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                side: BorderSide(color: AppColors.primary),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+          ..._education.map((edu) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _buildEducationCard(
+                  level: edu.level,
+                  institution: edu.institution,
+                  major: edu.major ?? '-',
+                  year: edu.graduationYear ?? '-',
                 ),
-              ),
-            ),
-          ),
+              )),
+          const SizedBox(height: 8),
+          _buildAddButton('Add Education', () {}),
         ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(String message, String buttonText) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.inbox_outlined, size: 48, color: AppColors.textMuted),
+          const SizedBox(height: 12),
+          Text(message, style: TextStyle(color: AppColors.textSecondary)),
+          const SizedBox(height: 16),
+          _buildAddButton(buttonText, () {}),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAddButton(String text, VoidCallback onPressed) {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: onPressed,
+        icon: const Icon(Icons.add),
+        label: Text(text),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.primary,
+          side: BorderSide(color: AppColors.primary),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
       ),
     );
   }
