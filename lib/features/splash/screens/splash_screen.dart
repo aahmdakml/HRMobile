@@ -50,41 +50,48 @@ class _SplashScreenState extends State<SplashScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
 
-      // Start logo animation
+      // Start logo animation immediately
       _logoController.forward();
 
-      // Check stored token while animation plays
-      bool isLoggedIn = false;
-      try {
-        // First check if we have a token
-        final hasToken = await AuthService.isLoggedIn();
-        if (hasToken) {
-          // Verify token with server
-          isLoggedIn = await AuthService.verifyToken();
-        }
-      } catch (e) {
-        debugPrint('SPLASH: Auth check error: $e');
-        isLoggedIn = false;
-      }
+      // Run auth check and minimum animation time IN PARALLEL
+      final results = await Future.wait([
+        _checkAuth(),
+        Future.delayed(
+            const Duration(milliseconds: 1500)), // Reduced from 2000ms
+      ]);
 
-      // Wait for animation to complete (minimum 2 seconds)
-      await Future.delayed(const Duration(milliseconds: 2000));
+      final isLoggedIn = results[0] as bool;
 
       if (!mounted) return;
 
-      // Navigate based on auth status
+      // Navigate immediately (no additional delay)
       final nextScreen = isLoggedIn ? const MainShell() : const LoginScreen();
 
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
           pageBuilder: (_, __, ___) => nextScreen,
-          transitionDuration: const Duration(milliseconds: 400),
+          transitionDuration:
+              const Duration(milliseconds: 300), // Faster transition
           transitionsBuilder: (_, animation, __, child) {
             return FadeTransition(opacity: animation, child: child);
           },
         ),
       );
     });
+  }
+
+  /// Check authentication status
+  Future<bool> _checkAuth() async {
+    try {
+      final hasToken = await AuthService.isLoggedIn();
+      if (hasToken) {
+        return await AuthService.verifyToken();
+      }
+      return false;
+    } catch (e) {
+      debugPrint('SPLASH: Auth check error: $e');
+      return false;
+    }
   }
 
   @override

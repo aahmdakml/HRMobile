@@ -17,12 +17,33 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
 
-  final List<Widget> _pages = const [
+  // Track which tabs have been visited for lazy loading
+  final Set<int> _loadedTabs = {0}; // Home is always loaded
+
+  // Tab screens (built lazily)
+  static const List<Widget> _pages = [
     HomeScreen(),
     AnalyticsScreen(),
     AttendanceScreen(),
     ProfileConfigScreen(),
   ];
+
+  /// Build page only if it has been visited
+  Widget _buildPage(int index) {
+    if (!_loadedTabs.contains(index)) {
+      // Return empty placeholder for unvisited tabs
+      return const SizedBox.shrink();
+    }
+    return _pages[index];
+  }
+
+  /// Handle tab change with lazy loading
+  void _onTabChanged(int index) {
+    setState(() {
+      _loadedTabs.add(index); // Mark tab as loaded
+      _currentIndex = index;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +54,7 @@ class _MainShellState extends State<MainShell> {
 
         // If not on home tab, go to home first
         if (_currentIndex != 0) {
-          setState(() => _currentIndex = 0);
+          _onTabChanged(0);
           return;
         }
 
@@ -45,7 +66,10 @@ class _MainShellState extends State<MainShell> {
       },
       child: Scaffold(
         backgroundColor: AppColors.background,
-        body: IndexedStack(index: _currentIndex, children: _pages),
+        body: IndexedStack(
+          index: _currentIndex,
+          children: List.generate(_pages.length, _buildPage),
+        ),
         bottomNavigationBar: _buildBottomNav(),
       ),
     );
@@ -146,11 +170,7 @@ class _MainShellState extends State<MainShell> {
   }) {
     final isActive = _currentIndex == index;
     return GestureDetector(
-      onTap: () {
-        setState(() {
-          _currentIndex = index;
-        });
-      },
+      onTap: () => _onTabChanged(index),
       behavior: HitTestBehavior.opaque,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

@@ -6,6 +6,8 @@ import 'package:mobile_app/core/services/app_preferences.dart';
 import 'package:mobile_app/core/services/navigation_service.dart';
 import 'package:mobile_app/features/splash/screens/splash_screen.dart';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -26,7 +28,7 @@ void main() async {
   // Initialize app preferences (theme, locale)
   await appPreferences.init();
 
-  runApp(const MyApp());
+  runApp(const ProviderScope(child: MyApp()));
 }
 
 class MyApp extends StatefulWidget {

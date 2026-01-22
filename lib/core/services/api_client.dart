@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
+import 'package:dio/io.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_app/core/config/app_config.dart';
 import 'package:mobile_app/core/services/auth_storage.dart';
@@ -22,7 +25,21 @@ class ApiClient {
       },
     ));
 
+    // Enable certificate validation in production
+    _setupSecureClient();
     _setupInterceptors();
+  }
+
+  /// Configure HTTPS certificate validation for production
+  void _setupSecureClient() {
+    if (AppConfig.isProduction) {
+      (_dio.httpClientAdapter as IOHttpClientAdapter).createHttpClient = () {
+        final client = HttpClient();
+        // Reject invalid/self-signed certificates in production
+        client.badCertificateCallback = (cert, host, port) => false;
+        return client;
+      };
+    }
   }
 
   static ApiClient get instance {

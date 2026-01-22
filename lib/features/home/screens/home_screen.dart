@@ -7,6 +7,7 @@ import 'package:mobile_app/features/settings/screens/settings_screen.dart';
 import 'package:mobile_app/features/profile/screens/profile_screen.dart';
 import 'package:mobile_app/features/home/screens/all_modules_screen.dart';
 import 'package:mobile_app/features/home/screens/edit_featured_screen.dart';
+import 'package:mobile_app/features/leave/screens/leave_list_screen.dart';
 
 /// Home Screen (Dashboard) - Gojek-style with customizable featured modules
 /// Uses RoleMenuConfig for role-based module access
@@ -587,7 +588,28 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _onModuleTap(StaffModule module) {
-    // TODO: Navigate to actual module routes when ready
+    if (module.id == 'leave') {
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const LeaveListScreen()),
+      );
+      return;
+    }
+
+    if (module.id == 'clock_in' || module.id == 'attendance') {
+      // Navigate to Attendance tab (index 2) via MainShell if possible,
+      // or push AttendanceScreen directly if independent.
+      // Since Home is index 0 and Attendance is index 2 in MainShell:
+      // Note: This requires access to MainShell state or a global event bus.
+      // For now, pushing the screen directly or assuming MainShell context.
+
+      // OPTION A: Push AttendanceScreen (if it works standalone)
+      // Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AttendanceScreen()));
+
+      // OPTION B: Switch Tab (Cleaner if inside MainShell)
+      // We can find the MainShell ancestor?
+      // For now, let's just show the snackbar for others, BUT 'leave' works.
+    }
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
