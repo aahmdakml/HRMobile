@@ -1,6 +1,9 @@
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:mobile_app/core/models/user.dart';
+import 'package:mobile_app/core/services/cache_service.dart';
+import 'package:mobile_app/core/services/time_service.dart';
+import 'package:flutter/foundation.dart';
 
 /// Secure storage for authentication data
 /// Uses flutter_secure_storage for encrypted storage
@@ -94,13 +97,27 @@ class AuthStorage {
 
   /// Clear auth data (logout) - keeps remembered email
   static Future<void> clearAll() async {
+    debugPrint('AUTH_STORAGE: Clearing auth data...');
     await _storage.delete(key: _keyToken);
     await _storage.delete(key: _keyUser);
     await _storage.delete(key: _keyTokenExpiry);
+
+    // Also clear SQLite cache and RAM
+    debugPrint('AUTH_STORAGE: Clearing SQLite cache...');
+    await CacheService.clearAll();
+    TimeService.clear(); // Clear RAM anchor
+    debugPrint('AUTH_STORAGE: All data cleared');
   }
 
   /// Clear everything including remembered email
   static Future<void> clearEverything() async {
+    debugPrint(
+        'AUTH_STORAGE: Clearing ALL data (including remembered email)...');
     await _storage.deleteAll();
+
+    // Also clear SQLite cache
+    debugPrint('AUTH_STORAGE: Clearing SQLite cache...');
+    await CacheService.clearAll();
+    debugPrint('AUTH_STORAGE: Everything cleared');
   }
 }

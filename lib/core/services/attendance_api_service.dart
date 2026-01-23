@@ -1,5 +1,8 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:mobile_app/core/constants/api_config.dart';
+import 'package:mobile_app/core/services/cache_service.dart';
+import 'package:mobile_app/core/services/time_service.dart';
 
 /// Attendance API Service
 /// Connects to Laravel backend for attendance operations
@@ -7,6 +10,9 @@ import 'package:mobile_app/core/constants/api_config.dart';
 class AttendanceApiService {
   // Test endpoint path (no auth required)
   static const String testBaseUrl = '${ApiConfig.apiBasePath}/test/attendance';
+
+  // Cache key for attendance security data
+  static const String _cacheKeyLocations = 'attendance_security';
 
   // Default test emp_id - matches seeded employee
   static String _empId = '601120045'; // Fallback
@@ -39,11 +45,53 @@ class AttendanceApiService {
     }
   }
 
-  /// Get allowed office locations
+  /// Get allowed office locations - FROM CACHE (for 5-sec checks)
+  /// Use syncLocations() to refresh from server
   static Future<List<Map<String, dynamic>>> getLocations() async {
+    // Try cache first
+    final cached = await CacheService.getData(_cacheKeyLocations);
+    if (cached != null && cached is List) {
+      debugPrint('CACHE: Using cached locations (${cached.length} items)');
+      return List<Map<String, dynamic>>.from(
+          cached.map((e) => Map<String, dynamic>.from(e)));
+    }
+
+    // No cache? Fetch from server (first time)
+    debugPrint('CACHE: No cache found, fetching from server...');
+    return await syncLocations();
+  }
+
+  /// Sync locations from server and update cache
+  /// Call this on app start and manual refresh ONLY
+  static Future<List<Map<String, dynamic>>> syncLocations() async {
     try {
+      debugPrint('API: Fetching locations from server...');
+
+      // 1. Fetch Locations
       final response = await _dio.get('/locations/$_empId');
-      return List<Map<String, dynamic>>.from(response.data['data']);
+      final data = List<Map<String, dynamic>>.from(response.data['data']);
+
+      // 2. Fetch Status (for Server Time)
+      // We do this in parallel or sequence? Sequence is safer.
+      try {
+        final statusResponse = await _dio.get('/status/$_empId');
+        final serverTimeStr = statusResponse.data['data']['server_time'];
+        if (serverTimeStr != null) {
+          final serverTime = DateTime.tryParse(serverTimeStr);
+          if (serverTime != null) {
+            await TimeService.syncServerTime(serverTime);
+            debugPrint('CACHE: Synced server time anchor: $serverTime');
+          }
+        }
+      } catch (e) {
+        debugPrint('API: Warning - could not sync server time: $e');
+      }
+
+      // 3. Save Locations to cache
+      await CacheService.setData(_cacheKeyLocations, data);
+      debugPrint('CACHE: Saved ${data.length} locations to cache');
+
+      return data;
     } on DioException catch (e) {
       throw Exception(e.response?.data['message'] ?? 'Failed to get locations');
     }

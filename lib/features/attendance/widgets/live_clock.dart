@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../../../core/services/time_service.dart';
 
 /// A live clock widget with blinking colon animation
 class LiveClock extends StatefulWidget {
@@ -23,11 +24,22 @@ class _LiveClockState extends State<LiveClock> {
     _updateOffset();
 
     // Update every 500ms to handle colon blinking
-    _timer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
-      setState(() {
-        _now = DateTime.now().add(_timeOffset);
-        _colonVisible = !_colonVisible;
-      });
+    _timer = Timer.periodic(const Duration(milliseconds: 500), (timer) async {
+      // secureNow is immune to phone time changes
+      final secureNow = await TimeService.getCachedServerTime();
+
+      if (mounted) {
+        // Check mounted AFTER async call
+        setState(() {
+          if (secureNow != null) {
+            _now = secureNow;
+          } else {
+            // Fallback if secure time not available
+            _now = DateTime.now().add(_timeOffset);
+          }
+          _colonVisible = !_colonVisible;
+        });
+      }
     });
   }
 
@@ -41,10 +53,9 @@ class _LiveClockState extends State<LiveClock> {
 
   void _updateOffset() {
     if (widget.serverTime != null) {
-      // Calculate difference between server time and current local time
+      // We still calculate offset as fallback, but primary source is TimeService
       _timeOffset = widget.serverTime!.difference(DateTime.now());
-      // Immediately update _now
-      _now = DateTime.now().add(_timeOffset);
+      // But we prefer TimeService if available, which effectively ignores this offset
     }
   }
 

@@ -5,6 +5,7 @@ import 'package:network_info_plus/network_info_plus.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/services/attendance_api_service.dart';
 import '../../../core/services/auth_state.dart';
+import '../../../core/services/time_service.dart';
 import '../models/attendance_state.dart';
 import '../widgets/security_pill.dart';
 import '../widgets/live_clock.dart';
@@ -77,7 +78,8 @@ class _AttendanceScreenState extends State<AttendanceScreen>
       if (mounted) {
         _checkLocation();
         _checkNetwork();
-        _syncServerTime();
+        // Server time sync removed to save bandwidth
+        // _syncServerTime();
       }
     });
   }
@@ -102,7 +104,17 @@ class _AttendanceScreenState extends State<AttendanceScreen>
       AttendanceApiService.setEmpId(empId.toString());
     }
 
+    // Sync locations from server on app open (updates cache)
+    try {
+      //print('DEBUG: Calling syncLocations()...'); (Refresh when menu is opened for the first time)
+      //await AttendanceApiService.syncLocations();
+      debugPrint('DEBUG: syncLocations() complete');
+    } catch (e) {
+      debugPrint('DEBUG: syncLocations() ERROR: $e');
+    }
+
     await _fetchAttendanceStatus();
+    await _loadCachedServerTime(); // Set initial clock from cache (secure uptime)
     await _checkLocation();
     await _checkNetwork();
   }
@@ -146,19 +158,15 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     }
   }
 
-  /// Lightweight sync to update server time for clock display
-  Future<void> _syncServerTime() async {
-    try {
-      final status = await AttendanceApiService.getStatus();
-      if (status['server_time'] != null) {
+  Future<void> _loadCachedServerTime() async {
+    final cachedTime = await TimeService.getCachedServerTime();
+    if (cachedTime != null) {
+      if (mounted) {
         setState(() {
-          _serverTime = DateTime.tryParse(status['server_time'])?.toLocal();
+          _serverTime = cachedTime;
         });
-        print('CLOCK: Synced server time: $_serverTime');
+        debugPrint('CLOCK: Loaded cached server time: $_serverTime');
       }
-    } catch (e) {
-      // Silent fail - clock will continue with last known offset
-      debugPrint('CLOCK: Failed to sync server time: $e');
     }
   }
 
@@ -225,7 +233,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
           final name = location['location_name']?.toString() ?? 'Unknown';
 
           if (lat == null || lng == null) {
-            print('DOCS: Invalid coordinates for $name');
+            debugPrint('DOCS: Invalid coordinates for $name');
             continue;
           }
 
@@ -245,7 +253,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
           }
         }
 
-        print('DOCS: Location Check: $validLog');
+        // debugPrint('DOCS: Location Check: $validLog');
 
         setState(() {
           _isLocationValid = isValid;
@@ -278,8 +286,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     try {
       final info = NetworkInfo();
       final bssid = await info.getWifiBSSID();
-
-      print('NETWORK: Connected WiFi BSSID (MAC): $bssid');
+      debugPrint('NETWORK: Connected WiFi BSSID (MAC): $bssid');
 
       if (bssid == null || bssid == '02:00:00:00:00:00') {
         // Not connected to WiFi or permission issue
@@ -287,7 +294,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
           _isNetworkValid = false;
           _networkName = 'No WiFi';
         });
-        print('NETWORK: No WiFi or permission denied');
+        debugPrint('NETWORK: No WiFi or permission denied');
         return;
       }
 
@@ -319,7 +326,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
             isValid = true;
             matchedNetwork =
                 location['location_name']?.toString() ?? 'Office WiFi';
-            print('NETWORK: ✓ MAC matched for $matchedNetwork');
+            debugPrint('NETWORK: ✓ MAC matched for $matchedNetwork');
             break;
           }
         }
@@ -332,14 +339,14 @@ class _AttendanceScreenState extends State<AttendanceScreen>
         print(
             'NETWORK: Validation result: isValid=$isValid, networkName=$_networkName');
       } catch (apiError) {
-        print('NETWORK: API Error: $apiError');
+        debugPrint('NETWORK: API Error: $apiError');
         setState(() {
           _isNetworkValid = false;
           _networkName = 'API Error';
         });
       }
     } catch (e) {
-      print('NETWORK: Error getting BSSID: $e');
+      debugPrint('NETWORK: Error getting BSSID: $e');
       setState(() {
         _isNetworkValid = false;
         _networkName = 'WiFi Error';
@@ -368,6 +375,10 @@ class _AttendanceScreenState extends State<AttendanceScreen>
 
   Future<void> _onRefresh() async {
     setState(() => _isLoading = true);
+
+    // Sync locations from server on manual refresh (updates cache)
+    await AttendanceApiService.syncLocations();
+
     await _fetchAttendanceStatus();
     await _checkLocation();
     await _checkNetwork();

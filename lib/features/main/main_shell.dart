@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_app/core/theme/app_colors.dart';
+import 'package:mobile_app/core/services/attendance_api_service.dart';
 import 'package:mobile_app/features/home/screens/home_screen.dart';
 import 'package:mobile_app/features/analytics/screens/analytics_screen.dart';
 import 'package:mobile_app/features/attendance/screens/attendance_screen.dart';
@@ -27,6 +28,24 @@ class _MainShellState extends State<MainShell> {
     AttendanceScreen(),
     ProfileConfigScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    // Sync attendance locations immediately after login
+    _syncAttendanceData();
+  }
+
+  /// Sync attendance data on app start (background)
+  Future<void> _syncAttendanceData() async {
+    try {
+      debugPrint('MAIN_SHELL: Syncing attendance locations...');
+      await AttendanceApiService.syncLocations();
+      debugPrint('MAIN_SHELL: Sync complete');
+    } catch (e) {
+      debugPrint('MAIN_SHELL: Sync error: $e');
+    }
+  }
 
   /// Build page only if it has been visited
   Widget _buildPage(int index) {
