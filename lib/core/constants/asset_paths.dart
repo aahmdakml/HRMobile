@@ -4,7 +4,7 @@ class AssetPaths {
 
   // Images
   static const String imagesPath = 'assets/images';
-  static const String logo = '$imagesPath/Saraswanti-logo.webp';
+  static const String logo = '$imagesPath/Saraswanti-logo.png';
   static const String successCheck = '$imagesPath/ok-fixed.png';
 
   // Icons (future)
