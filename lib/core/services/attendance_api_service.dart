@@ -3,39 +3,40 @@ import 'package:flutter/foundation.dart';
 import 'package:mobile_app/core/constants/api_config.dart';
 import 'package:mobile_app/core/services/cache_service.dart';
 import 'package:mobile_app/core/services/time_service.dart';
+import 'package:network_info_plus/network_info_plus.dart';
 
 /// Attendance API Service
 /// Connects to Laravel backend for attendance operations
-/// USING TEST ENDPOINTS (NO AUTH) - Update when auth is ready
+/// USES AUTHENTICATED ENDPOINTS - Requires Auth Token
 class AttendanceApiService {
-  // Test endpoint path (no auth required)
-  static const String testBaseUrl = '${ApiConfig.apiBasePath}/test/attendance';
+  // Mobile app authenticated routes base path
+  // Routes: /hris/profile/mobile-attendance/status, /check-in, etc.
+  static const String baseUrl =
+      '${ApiConfig.apiBasePath}/hris/profile/mobile-attendance';
 
   // Cache key for attendance security data
   static const String _cacheKeyLocations = 'attendance_security';
 
-  // Default test emp_id - matches seeded employee
-  static String _empId = '601120045'; // Fallback
-
-  // Dio instance for test endpoints
+  // Dio instance
   static final Dio _dio = Dio(BaseOptions(
-    baseUrl: testBaseUrl,
+    baseUrl: baseUrl,
     connectTimeout: ApiConfig.connectTimeout,
     receiveTimeout: ApiConfig.receiveTimeout,
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+    },
   ));
-
-  static void setEmpId(String empId) {
-    _empId = empId;
-  }
 
   static void setToken(String token) {
     _dio.options.headers['Authorization'] = 'Bearer $token';
+    debugPrint('API: Token set for attendance service');
   }
 
   /// Get today's attendance status
   static Future<Map<String, dynamic>> getStatus() async {
     try {
-      final response = await _dio.get('/status/$_empId');
+      final response = await _dio.get('/status');
       return response.data['data'];
     } on DioException catch (e) {
       throw Exception(e.response?.data['message'] ??
@@ -68,14 +69,16 @@ class AttendanceApiService {
       debugPrint('API: Fetching locations from server...');
 
       // 1. Fetch Locations
-      final response = await _dio.get('/locations/$_empId');
+      final response = await _dio.get('/locations');
       final data = List<Map<String, dynamic>>.from(response.data['data']);
 
       // 2. Fetch Status (for Server Time)
-      // We do this in parallel or sequence? Sequence is safer.
       try {
-        final statusResponse = await _dio.get('/status/$_empId');
+        final statusResponse = await _dio.get('/status');
         final serverTimeStr = statusResponse.data['data']['server_time'];
+        // Note: Real API might not return server_time in status,
+        // if not, we rely on standard headers or separate endpoint.
+        // Assuming current controller structure:
         if (serverTimeStr != null) {
           final serverTime = DateTime.tryParse(serverTimeStr);
           if (serverTime != null) {
@@ -97,6 +100,17 @@ class AttendanceApiService {
     }
   }
 
+  /// Helper: Get WiFi BSSID (Connected Router MAC)
+  static Future<String?> _getWifiBssid() async {
+    try {
+      final info = NetworkInfo();
+      return await info.getWifiBSSID();
+    } catch (e) {
+      debugPrint('API: Error getting WiFi BSSID: $e');
+      return null;
+    }
+  }
+
   /// Check in
   static Future<Map<String, dynamic>> checkIn({
     required double latitude,
@@ -104,12 +118,14 @@ class AttendanceApiService {
     String? mac,
   }) async {
     try {
+      final bssid = mac ?? await _getWifiBssid();
+
       final response = await _dio.post(
-        '/check-in/$_empId',
+        '/check-in',
         data: {
           'latitude': latitude,
           'longitude': longitude,
-          if (mac != null) 'mac': mac,
+          if (bssid != null) 'mac_address': bssid,
         },
       );
       return response.data['data'];
@@ -125,12 +141,14 @@ class AttendanceApiService {
     String? mac,
   }) async {
     try {
+      final bssid = mac ?? await _getWifiBssid();
+
       final response = await _dio.post(
-        '/check-out/$_empId',
+        '/check-out',
         data: {
           'latitude': latitude,
           'longitude': longitude,
-          if (mac != null) 'mac': mac,
+          if (bssid != null) 'mac_address': bssid,
         },
       );
       return response.data['data'];
@@ -146,12 +164,14 @@ class AttendanceApiService {
     String? mac,
   }) async {
     try {
+      final bssid = mac ?? await _getWifiBssid();
+
       final response = await _dio.post(
-        '/break-in/$_empId',
+        '/break-in',
         data: {
           'latitude': latitude,
           'longitude': longitude,
-          if (mac != null) 'mac': mac,
+          if (bssid != null) 'mac_address': bssid,
         },
       );
       return response.data['data'];
@@ -167,12 +187,14 @@ class AttendanceApiService {
     String? mac,
   }) async {
     try {
+      final bssid = mac ?? await _getWifiBssid();
+
       final response = await _dio.post(
-        '/break-out/$_empId',
+        '/break-out',
         data: {
           'latitude': latitude,
           'longitude': longitude,
-          if (mac != null) 'mac': mac,
+          if (bssid != null) 'mac_address': bssid,
         },
       );
       return response.data['data'];
@@ -181,10 +203,10 @@ class AttendanceApiService {
     }
   }
 
-  /// Reset attendance (TEST ONLY)
+  /// Reset attendance (DEBUG ONLY)
   static Future<void> resetAttendance() async {
     try {
-      await _dio.delete('/reset/$_empId');
+      await _dio.delete('/reset');
     } on DioException catch (e) {
       throw Exception(e.response?.data['message'] ?? 'Reset failed');
     }

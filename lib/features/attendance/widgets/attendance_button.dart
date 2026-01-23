@@ -14,6 +14,8 @@ class AttendanceButton extends StatefulWidget {
   final AttendanceAction action;
   final bool isEnabled;
   final VoidCallback? onComplete;
+  final VoidCallback?
+      onDisabledTap; // Called when button is tapped while disabled
   final Duration holdDuration;
 
   const AttendanceButton({
@@ -21,6 +23,7 @@ class AttendanceButton extends StatefulWidget {
     required this.action,
     this.isEnabled = true,
     this.onComplete,
+    this.onDisabledTap,
     this.holdDuration = const Duration(milliseconds: 2000),
   });
 
@@ -112,6 +115,7 @@ class _AttendanceButtonState extends State<AttendanceButton>
     if (!widget.isEnabled) {
       _triggerCancelPulse();
       _hapticFail();
+      widget.onDisabledTap?.call(); // Show error dialog
       return;
     }
 
