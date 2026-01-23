@@ -13,8 +13,10 @@ class ProfileConfigScreen extends StatefulWidget {
 }
 
 class _ProfileConfigScreenState extends State<ProfileConfigScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late TabController _tabController;
+  late AnimationController _breathingController;
+  late Animation<double> _breathingAnimation;
 
   final List<String> _tabs = [
     'Personal',
@@ -38,7 +40,28 @@ class _ProfileConfigScreenState extends State<ProfileConfigScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: _tabs.length, vsync: this);
+
+    // Breathing Animation
+    _breathingController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 4),
+    )..repeat(reverse: true);
+
+    _breathingAnimation = Tween<double>(begin: 1.0, end: 1.5).animate(
+      CurvedAnimation(
+        parent: _breathingController,
+        curve: Curves.easeInOut,
+      ),
+    );
+
     _loadProfileData();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _breathingController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadProfileData() async {
@@ -94,141 +117,235 @@ class _ProfileConfigScreenState extends State<ProfileConfigScreen>
   }
 
   @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(),
-            _buildTabBar(),
-            Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _error != null
-                      ? _buildErrorView()
-                      : TabBarView(
+      backgroundColor:
+          const Color(0xFF1E1E2D), // Dark background matching header
+      body: DefaultTabController(
+        length: _tabs.length,
+        child: NestedScrollView(
+          headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
+            return <Widget>[
+              // Dark Header with Profile Info
+              SliverAppBar(
+                expandedHeight: 280.0,
+                floating: false,
+                pinned: true,
+                backgroundColor: const Color(0xFF1E1E2D),
+                elevation: 0,
+                flexibleSpace: FlexibleSpaceBar(
+                  background: _buildHeaderContent(),
+                  collapseMode: CollapseMode.pin,
+                ),
+              ),
+
+              // Sticky TabBar Container
+              SliverPersistentHeader(
+                delegate: _StickyTabBarDelegate(
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(30),
+                        topRight: Radius.circular(30),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 10), // Space for overlap
+                        TabBar(
                           controller: _tabController,
-                          children: [
-                            _buildPersonalTab(),
-                            _buildAddressTab(),
-                            _buildContactTab(),
-                            _buildFamilyTab(),
-                            _buildEducationTab(),
-                          ],
+                          isScrollable: true,
+                          labelColor: AppColors.primary,
+                          unselectedLabelColor: AppColors.textSecondary,
+                          labelStyle: const TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w600),
+                          unselectedLabelStyle: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w400,
+                          ),
+                          indicatorColor: AppColors.primary,
+                          indicatorWeight: 3,
+                          indicatorSize: TabBarIndicatorSize.label,
+                          tabAlignment: TabAlignment.start,
+                          dividerColor: Colors.transparent,
+                          tabs: _tabs.map((tab) => Tab(text: tab)).toList(),
                         ),
-            ),
-          ],
+                        const Divider(height: 1, color: AppColors.border),
+                      ],
+                    ),
+                  ),
+                ),
+                pinned: true,
+              ),
+            ];
+          },
+          // Body Content (White Background)
+          body: Container(
+            color: Colors.white, // Continues the white background
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _error != null
+                    ? _buildErrorView()
+                    : TabBarView(
+                        controller: _tabController,
+                        children: [
+                          _buildPersonalTab(),
+                          _buildAddressTab(),
+                          _buildContactTab(),
+                          _buildFamilyTab(),
+                          _buildEducationTab(),
+                        ],
+                      ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildErrorView() {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.error_outline, size: 48, color: AppColors.error),
-          const SizedBox(height: 16),
-          Text(_error ?? 'Error loading data'),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: _loadProfileData,
-            child: const Text('Retry'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
+  Widget _buildHeaderContent() {
     // Get data from authState or loaded personalData
     final user = authState.user;
     final name = _personalData?.name ?? user?.displayName ?? 'Loading...';
     final empId = _personalData?.empId ?? user?.empId ?? '-';
     final position = user?.employee?.position ?? 'Employee';
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: AppColors.primary),
-      child: Column(
+    return SafeArea(
+      child: Stack(
         children: [
-          Row(
-            children: [
-              const Spacer(),
-              const Text(
-                'My Profile',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-              const Spacer(),
-            ],
-          ),
-          const SizedBox(height: 16),
-          // Avatar and name
-          Row(
-            children: [
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
-                ),
-                child: Icon(Icons.person, size: 32, color: AppColors.primary),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
+          // Spotlight Glow Background (Breathing)
+          Positioned.fill(
+            child: AnimatedBuilder(
+              animation: _breathingAnimation,
+              builder: (context, child) {
+                return Container(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: const Alignment(0, -0.2),
+                      radius: _breathingAnimation.value, // Breathing radius
+                      colors: [
+                        AppColors.primary.withOpacity(0.15 *
+                            (2.5 - _breathingAnimation.value)), // Pulse opacity
+                        const Color(0xFF1E1E2D),
+                      ],
+                      stops: const [0.0, 0.7],
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '$empId • $position',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.white.withAlpha(200),
+                  ),
+                );
+              },
+            ),
+          ),
+
+          // Subtle Top Light Source
+          Positioned(
+            top: -100,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Container(
+                width: 300,
+                height: 100,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withOpacity(0.03),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.white.withOpacity(0.05),
+                      blurRadius: 100,
+                      spreadRadius: 20,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Main Profile Content
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const SizedBox(height: 10),
+              // Avatar with Glassmorphism Effect
+              Center(
+                child: Stack(
+                  children: [
+                    Container(
+                      width: 100,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.2),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                            color: Colors.white.withOpacity(0.2), width: 4),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: Icon(Icons.person,
+                          color: Colors.white.withOpacity(0.9), size: 50),
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.camera_alt,
+                          size: 14,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
-              IconButton(
-                onPressed: () {
-                  // TODO: Edit photo
-                },
-                icon: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withAlpha(30),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.camera_alt_outlined,
-                    color: Colors.white,
-                    size: 18,
+              const SizedBox(height: 20),
+              // Name
+              Text(
+                name,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  letterSpacing: 0.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 6),
+              // Position & ID Badge
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.white.withOpacity(0.1)),
+                ),
+                child: Text(
+                  '$position • $empId',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white.withOpacity(0.8),
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
+              const SizedBox(height: 20), // Bottom padding for overlap
             ],
           ),
         ],
@@ -236,26 +353,7 @@ class _ProfileConfigScreenState extends State<ProfileConfigScreen>
     );
   }
 
-  Widget _buildTabBar() {
-    return Container(
-      color: Colors.white,
-      child: TabBar(
-        controller: _tabController,
-        isScrollable: true,
-        labelColor: AppColors.primary,
-        unselectedLabelColor: AppColors.textSecondary,
-        labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-        unselectedLabelStyle: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w400,
-        ),
-        indicatorColor: AppColors.primary,
-        indicatorWeight: 3,
-        tabAlignment: TabAlignment.start,
-        tabs: _tabs.map((tab) => Tab(text: tab)).toList(),
-      ),
-    );
-  }
+  // _buildTabBar and _buildHeader removed as they are replaced by Sliver logic
 
   Widget _buildPersonalTab() {
     final data = _personalData;
@@ -635,10 +733,51 @@ class _ProfileConfigScreenState extends State<ProfileConfigScreen>
       ),
     );
   }
+
+  Widget _buildErrorView() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.error_outline, size: 48, color: AppColors.error),
+          const SizedBox(height: 16),
+          Text(_error ?? 'Error loading data'),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _loadProfileData,
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _FieldData {
   final String label;
   final String value;
   _FieldData(this.label, this.value);
+}
+
+class _StickyTabBarDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+
+  _StickyTabBarDelegate({required this.child});
+
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return child;
+  }
+
+  @override
+  double get maxExtent => 60.0; // Height of the TabBar container
+
+  @override
+  double get minExtent => 60.0;
+
+  @override
+  bool shouldRebuild(covariant _StickyTabBarDelegate oldDelegate) {
+    return oldDelegate.child != child;
+  }
 }
