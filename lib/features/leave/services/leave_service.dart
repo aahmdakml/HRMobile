@@ -55,7 +55,7 @@ class LeaveService {
   static Future<List<TimeoffCompany>> getTimeoffTypes(String companyId) async {
     try {
       final response = await apiClient.get(
-        'company/$companyId/timeoff',
+        '/company/$companyId/timeoff',
         queryParameters: {
           'offset': 0,
           'limit': 100,
@@ -82,6 +82,7 @@ class LeaveService {
       );
 
       final List<dynamic> listJson = response.data['data'] ?? [];
+      print('empId1: $empId');
       return listJson
           .map((json) => EmployeeSpvApproval.fromJson(json))
           .toList();

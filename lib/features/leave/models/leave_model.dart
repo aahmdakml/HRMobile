@@ -149,10 +149,19 @@ class TimeoffCompany {
   });
 
   factory TimeoffCompany.fromJson(Map<String, dynamic> json) {
+    // Safe parse for maxDays that can be string or int
+    int? parseMaxDays(dynamic value) {
+      if (value == null) return null;
+      if (value is int) return value;
+      if (value is double) return value.toInt();
+      final parsed = int.tryParse(value.toString());
+      return parsed;
+    }
+
     return TimeoffCompany(
       code: json['timeoff_code'] ?? '',
       name: json['timeoff_types']?['timeoff_name'],
-      maxDays: json['tc_max_days'],
+      maxDays: parseMaxDays(json['tc_max_days']),
       needsApproval: json['tc_needs_approval'] == true ||
           json['tc_needs_approval'] == 1 ||
           json['tc_needs_approval'] == '1',

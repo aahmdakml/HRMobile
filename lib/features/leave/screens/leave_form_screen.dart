@@ -40,7 +40,7 @@ class _LeaveFormScreenState extends ConsumerState<LeaveFormScreen> {
       final user = ref.read(authStateProvider).user;
       final companyId = user?.employee?.companyId ?? '';
       final empId = user?.employee?.empId ?? '';
-
+      print('empId: $empId');
       if (companyId.isEmpty) {
         throw Exception('Company ID not found');
       }
@@ -181,377 +181,769 @@ class _LeaveFormScreenState extends ConsumerState<LeaveFormScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text('Leave Request',
-            style:
-                TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Stepper(
-              type: StepperType.horizontal,
-              currentStep: _currentStep,
-              elevation: 0,
-              onStepContinue: () {
-                if (_validateStep(_currentStep)) {
-                  if (_currentStep < 2) {
-                    setState(() => _currentStep += 1);
-                  } else {
-                    _submit();
-                  }
-                }
-              },
-              onStepCancel: () {
-                if (_currentStep > 0) {
-                  setState(() => _currentStep -= 1);
-                }
-              },
-              controlsBuilder: (context, details) {
-                return Padding(
-                  padding: const EdgeInsets.only(top: 24),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: details.onStepContinue,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+      backgroundColor: const Color(0xFF1E1E2D),
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            // Custom Header
+            _buildHeader(context),
+            
+            // Main Content
+            Expanded(
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(28),
+                    topRight: Radius.circular(28),
+                  ),
+                ),
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : ClipRRect(
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(28),
+                          topRight: Radius.circular(28),
+                        ),
+                        child: Stepper(
+                          type: StepperType.horizontal,
+                          currentStep: _currentStep,
+                          elevation: 0,
+                          margin: EdgeInsets.zero,
+                          onStepContinue: () {
+                            if (_validateStep(_currentStep)) {
+                              if (_currentStep < 2) {
+                                setState(() => _currentStep += 1);
+                              } else {
+                                _submit();
+                              }
+                            }
+                          },
+                          onStepCancel: () {
+                            if (_currentStep > 0) {
+                              setState(() => _currentStep -= 1);
+                            }
+                          },
+                          controlsBuilder: (context, details) {
+                            return Container(
+                              padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.05),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, -2),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: ElevatedButton(
+                                      onPressed: _isSubmitting ? null : details.onStepContinue,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppColors.primary,
+                                        disabledBackgroundColor: AppColors.primary.withOpacity(0.5),
+                                        padding: const EdgeInsets.symmetric(vertical: 16),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        elevation: 0,
+                                      ),
+                                      child: _isSubmitting
+                                          ? const SizedBox(
+                                              height: 20,
+                                              width: 20,
+                                              child: CircularProgressIndicator(
+                                                  color: Colors.white, strokeWidth: 2))
+                                          : Text(
+                                              _currentStep == 2 ? 'Submit' : 'Continue',
+                                              style: const TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                    ),
+                                  ),
+                                  if (_currentStep > 0) ...[
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: OutlinedButton(
+                                        onPressed: details.onStepCancel,
+                                        style: OutlinedButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(vertical: 16),
+                                          side: BorderSide(color: Colors.grey.shade300),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                        ),
+                                        child: const Text('Back',
+                                            style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.black87)),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            );
+                          },
+                          steps: [
+                            Step(
+                              title: const Text('Dates'),
+                              content: _buildStep1(),
+                              isActive: _currentStep >= 0,
+                              state:
+                                  _currentStep > 0 ? StepState.complete : StepState.editing,
                             ),
-                          ),
-                          child: _isSubmitting
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                      color: Colors.white, strokeWidth: 2))
-                              : Text(_currentStep == 2 ? 'Submit' : 'Continue',
-                                  style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold)),
+                            Step(
+                              title: const Text('Details'),
+                              content: _buildStep2(),
+                              isActive: _currentStep >= 1,
+                              state:
+                                  _currentStep > 1 ? StepState.complete : StepState.editing,
+                            ),
+                            Step(
+                              title: const Text('Review'),
+                              content: _buildStep3(),
+                              isActive: _currentStep >= 2,
+                            ),
+                          ],
                         ),
                       ),
-                      if (_currentStep > 0) ...[
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: details.onStepCancel,
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              side: BorderSide(color: Colors.grey.shade300),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: const Text('Back',
-                                style: TextStyle(
-                                    fontSize: 16, color: Colors.black87)),
-                          ),
-                        ),
-                      ],
-                    ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 22,
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Leave Request',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
-                );
-              },
-              steps: [
-                Step(
-                  title: const Text('Dates'),
-                  content: _buildStep1(),
-                  isActive: _currentStep >= 0,
-                  state:
-                      _currentStep > 0 ? StepState.complete : StepState.editing,
                 ),
-                Step(
-                  title: const Text('Details'),
-                  content: _buildStep2(),
-                  isActive: _currentStep >= 1,
-                  state:
-                      _currentStep > 1 ? StepState.complete : StepState.editing,
-                ),
-                Step(
-                  title: const Text('Review'),
-                  content: _buildStep3(),
-                  isActive: _currentStep >= 2,
+                SizedBox(height: 2),
+                Text(
+                  'Submit your time off request',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.white70,
+                  ),
                 ),
               ],
             ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildStep1() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Leave Type
-        const Text('Leave Type',
-            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-        const SizedBox(height: 8),
-        DropdownButtonFormField<TimeoffCompany>(
-          value: _selectedTimeoff,
-          decoration: _inputDecoration('Select Leave Type'),
-          items: _timeoffTypes.map((type) {
-            return DropdownMenuItem(
-              value: type,
-              child: Text(type.name ?? type.code),
-            );
-          }).toList(),
-          onChanged: (val) => setState(() => _selectedTimeoff = val),
-        ),
-
-        const SizedBox(height: 20),
-
-        // Date Range
-        const Text('Select Dates',
-            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-        const SizedBox(height: 8),
-        InkWell(
-          onTap: _pickDateRange,
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.shade300),
-              borderRadius: BorderRadius.circular(12),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Leave Type
+          const Text(
+            'Leave Type',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 15,
+              color: Colors.black87,
             ),
-            child: Row(
+          ),
+          const SizedBox(height: 10),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: DropdownButtonFormField<TimeoffCompany>(
+              value: _selectedTimeoff,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                hintText: 'Select Leave Type',
+                hintStyle: TextStyle(color: Colors.grey),
+              ),
+              dropdownColor: Colors.white,
+              style: const TextStyle(
+                fontSize: 15,
+                color: Colors.black87,
+                fontWeight: FontWeight.w500,
+              ),
+              items: _timeoffTypes.map((type) {
+                return DropdownMenuItem(
+                  value: type,
+                  child: Text(
+                    type.name ?? type.code,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                );
+              }).toList(),
+              onChanged: (val) => setState(() => _selectedTimeoff = val),
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // Date Range
+          const Text(
+            'Select Dates',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 15,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 10),
+          InkWell(
+            onTap: _pickDateRange,
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                border: Border.all(color: Colors.grey.shade300),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.date_range,
+                        color: AppColors.primary, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      _dateRange == null
+                          ? 'Select start & end date'
+                          : '${DateFormat('dd MMM yyyy').format(_dateRange!.start)} - ${DateFormat('dd MMM yyyy').format(_dateRange!.end)}',
+                      style: TextStyle(
+                        color: _dateRange == null
+                            ? Colors.grey.shade600
+                            : Colors.black87,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ),
+                  Icon(Icons.arrow_forward_ios,
+                      size: 14, color: Colors.grey.shade400),
+                ],
+              ),
+            ),
+          ),
+
+          if (_selectedDates.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Icon(Icons.date_range, color: AppColors.primary),
-                const SizedBox(width: 12),
-                Text(
-                  _dateRange == null
-                      ? 'Select start & end date'
-                      : '${DateFormat('dd MMM').format(_dateRange!.start)} - ${DateFormat('dd MMM').format(_dateRange!.end)}',
+                const Text(
+                  'Selected Days',
                   style: TextStyle(
-                    color: _dateRange == null
-                        ? Colors.grey.shade600
-                        : Colors.black87,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                    color: Colors.black87,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: (_selectedTimeoff?.maxDays != null &&
+                            _selectedDates.length > _selectedTimeoff!.maxDays!)
+                        ? Colors.red.withOpacity(0.1)
+                        : AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '${_selectedDates.length} Days',
+                    style: TextStyle(
+                      color: (_selectedTimeoff?.maxDays != null &&
+                              _selectedDates.length > _selectedTimeoff!.maxDays!)
+                          ? Colors.red
+                          : AppColors.primary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _selectedDates.map((date) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: AppColors.primary.withOpacity(0.2),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        DateFormat('dd MMM').format(date),
+                        style: const TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      GestureDetector(
+                        onTap: () => _removeDate(date),
+                        child: Icon(Icons.close,
+                            size: 16, color: AppColors.primary.withOpacity(0.7)),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+            if (_selectedTimeoff?.maxDays != null &&
+                _selectedDates.length > _selectedTimeoff!.maxDays!)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.red.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.warning_amber_rounded,
+                          color: Colors.red, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Exceeds maximum allowed days (${_selectedTimeoff!.maxDays})',
+                          style: const TextStyle(
+                            color: Colors.red,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStep2() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Description',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 15,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: TextFormField(
+              controller: _descController,
+              maxLines: 5,
+              style: const TextStyle(
+                fontSize: 15,
+                color: Colors.black87,
+                height: 1.5,
+              ),
+              decoration: const InputDecoration(
+                hintText: 'Enter reason for your leave request...',
+                hintStyle: TextStyle(color: Colors.grey, fontSize: 14),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.all(16),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'Attachment (Optional)',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 15,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: Colors.grey.shade300,
+                style: BorderStyle.solid,
+              ),
+              borderRadius: BorderRadius.circular(12),
+              color: Colors.grey.shade50,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade200,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.cloud_upload_outlined,
+                      size: 32, color: Colors.grey.shade500),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Tap to upload file',
+                  style: TextStyle(
+                    color: Colors.grey.shade700,
+                    fontSize: 14,
                     fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    'Feature unavailable',
+                    style: TextStyle(
+                      color: Colors.orange,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-        ),
-
-        if (_selectedDates.isNotEmpty) ...[
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Selected Days',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-              Text(
-                '${_selectedDates.length} Days',
-                style: TextStyle(
-                  color: (_selectedTimeoff?.maxDays != null &&
-                          _selectedDates.length > _selectedTimeoff!.maxDays!)
-                      ? Colors.red
-                      : AppColors.primary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
           const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _selectedDates.map((date) {
-              return Chip(
-                label: Text(DateFormat('dd MMM').format(date)),
-                deleteIcon: const Icon(Icons.close, size: 18),
-                onDeleted: () => _removeDate(date),
-                backgroundColor: AppColors.primary.withOpacity(0.1),
-                labelStyle:
-                    const TextStyle(color: AppColors.primary, fontSize: 12),
-              );
-            }).toList(),
-          ),
-          if (_selectedTimeoff?.maxDays != null &&
-              _selectedDates.length > _selectedTimeoff!.maxDays!)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                  'Exceeds maximum allowed days (${_selectedTimeoff!.maxDays})',
-                  style: const TextStyle(color: Colors.red, fontSize: 12)),
-            ),
         ],
-      ],
-    );
-  }
-
-  Widget _buildStep2() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('Description',
-            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: _descController,
-          maxLines: 4,
-          decoration: _inputDecoration('Enter reason for leave...'),
-        ),
-        const SizedBox(height: 20),
-        const Text('Attachment (Optional)',
-            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-        const SizedBox(height: 8),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            border: Border.all(
-                color: Colors.grey.shade300,
-                style: BorderStyle
-                    .solid), // Dashed border not native, solid for now
-            borderRadius: BorderRadius.circular(12),
-            color: Colors.grey.shade50,
-          ),
-          child: Column(
-            children: [
-              Icon(Icons.cloud_upload_outlined,
-                  size: 32, color: Colors.grey.shade400),
-              const SizedBox(height: 8),
-              Text('Tap to upload file',
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
-              const SizedBox(height: 4),
-              const Text('(Attachment feature unavailable)',
-                  style: TextStyle(color: Colors.red, fontSize: 10)),
-            ],
-          ),
-        ),
-      ],
+      ),
     );
   }
 
   Widget _buildStep3() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.05),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.primary.withOpacity(0.1)),
-          ),
-          child: Column(
-            children: [
-              _buildSummaryRow('Type', _selectedTimeoff?.name ?? '-'),
-              const Divider(height: 24),
-              _buildSummaryRow(
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Summary Card
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppColors.primary.withOpacity(0.08),
+                  AppColors.primary.withOpacity(0.03),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.primary.withOpacity(0.15)),
+            ),
+            child: Column(
+              children: [
+                _buildSummaryRow(
+                  'Type',
+                  _selectedTimeoff?.name ?? '-',
+                  Icons.category_outlined,
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: Divider(height: 1, color: Colors.grey.shade300),
+                ),
+                _buildSummaryRow(
                   'Dates',
                   _selectedDates.isEmpty
                       ? '-'
-                      : '${_selectedDates.length} Days'),
-              const Divider(height: 24),
-              _buildSummaryRow('Reason', _descController.text),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
-        const Text('Approval Flow',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        const SizedBox(height: 16),
-        if (_selectedTimeoff?.needsApproval == false)
-          Center(
-            child: Column(
-              children: [
-                Icon(Icons.check_circle_outline,
-                    size: 48, color: Colors.green.shade300),
-                const SizedBox(height: 8),
-                const Text('No Approval Needed',
-                    style: TextStyle(color: Colors.grey)),
+                      : '${_selectedDates.length} Days',
+                  Icons.calendar_today_outlined,
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: Divider(height: 1, color: Colors.grey.shade300),
+                ),
+                _buildSummaryRow(
+                  'Reason',
+                  _descController.text.trim().isEmpty
+                      ? '-'
+                      : _descController.text,
+                  Icons.description_outlined,
+                ),
               ],
             ),
-          )
-        else if (_approvalFlow.isEmpty)
-          const Center(
-              child: Text('No approval flow found',
-                  style: TextStyle(color: Colors.grey)))
-        else
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: _approvalFlow.length,
-            itemBuilder: (context, index) {
-              final approver = _approvalFlow[index];
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Row(
+          ),
+          const SizedBox(height: 28),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.fact_check_outlined,
+                    color: AppColors.primary, size: 20),
+              ),
+              const SizedBox(width: 10),
+              const Text(
+                'Approval Flow',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 17,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (_selectedTimeoff?.needsApproval == false)
+            Center(
+              child: Container(
+                padding: const EdgeInsets.all(24),
+                child: Column(
                   children: [
                     Container(
-                      width: 40,
-                      height: 40,
+                      padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.1),
+                        color: Colors.green.withOpacity(0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: Center(
-                          child: Text('${index + 1}',
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.primary))),
+                      child: Icon(Icons.check_circle_outline,
+                          size: 48, color: Colors.green.shade400),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(approver.approverName,
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.bold)),
-                          Text(approver.approverTitle ?? 'Approver',
-                              style: TextStyle(
-                                  color: Colors.grey.shade600, fontSize: 12)),
-                        ],
+                    const SizedBox(height: 12),
+                    const Text(
+                      'No Approval Needed',
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
                 ),
-              );
-            },
-          ),
-      ],
+              ),
+            )
+          else if (_approvalFlow.isEmpty)
+            Center(
+              child: Container(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  children: [
+                    Icon(Icons.info_outline,
+                        size: 48, color: Colors.grey.shade400),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'No approval flow found',
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _approvalFlow.length,
+              itemBuilder: (context, index) {
+                final approver = _approvalFlow[index];
+                final isLast = index == _approvalFlow.length - 1;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade200),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.03),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                AppColors.primary,
+                                AppColors.primary.withOpacity(0.7),
+                              ],
+                            ),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.primary.withOpacity(0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Center(
+                            child: Text(
+                              '${index + 1}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                approver.approverName,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                approver.approverTitle ?? 'Approver',
+                                style: TextStyle(
+                                  color: Colors.grey.shade600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (!isLast)
+                          Icon(Icons.arrow_downward,
+                              size: 18, color: Colors.grey.shade400),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          const SizedBox(height: 8),
+        ],
+      ),
     );
   }
 
-  Widget _buildSummaryRow(String label, String value) {
+  Widget _buildSummaryRow(String label, String value, IconData icon) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(
-            width: 80,
-            child: Text(label,
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 13))),
+        Icon(icon, size: 20, color: AppColors.primary.withOpacity(0.7)),
+        const SizedBox(width: 12),
         Expanded(
-            child: Text(value,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  color: Colors.grey.shade600,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                value,
                 style: const TextStyle(
-                    fontWeight: FontWeight.w600, fontSize: 14))),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
-    );
-  }
-
-  InputDecoration _inputDecoration(String hint) {
-    return InputDecoration(
-      hintText: hint,
-      border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade300)),
-      enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade300)),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      filled: true,
-      fillColor: Colors.grey.shade50,
     );
   }
 }
