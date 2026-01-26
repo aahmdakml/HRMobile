@@ -376,8 +376,10 @@ class _AttendanceScreenState extends State<AttendanceScreen>
   Future<void> _onRefresh() async {
     setState(() => _isLoading = true);
 
+    // TEMPORARILY DISABLED - Causing 25s+ timeouts and blocking Leave module
     // Sync locations from server on manual refresh (updates cache)
-    await AttendanceApiService.syncLocations();
+    // await AttendanceApiService.syncLocations();
+    debugPrint('ATTENDANCE: Location sync skipped (disabled)');
 
     await _fetchAttendanceStatus();
     await _checkLocation();
@@ -479,7 +481,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: Colors.white, // White background everywhere
       body: SafeArea(
         child: Stack(
           children: [
@@ -488,48 +490,46 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                 // ========== A. HEADER SECTION ==========
                 _buildHeader(),
 
-                // ========== A2. SECURITY CLUSTER ==========
-                _buildSecurityCluster(),
+                // ========== MAIN CONTENT (Expanded to prevent overflow) ==========
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      // ========== A2. SECURITY CLUSTER ==========
+                      _buildSecurityCluster(),
 
-                // ========== B. TIME SECTION ==========
-                LiveClock(serverTime: _serverTime),
+                      // ========== B. TIME SECTION ==========
+                      LiveClock(serverTime: _serverTime),
 
-                const SizedBox(height: 12),
+                      // ========== C. STATUS SECTION ==========
+                      StatusBadge(
+                        status: _currentStatus,
+                        sinceTime: _checkInTime,
+                      ),
 
-                // ========== C. STATUS SECTION ==========
-                // Check Status Badge (Informational only)
-                StatusBadge(
-                  status: _currentStatus,
-                  sinceTime: _checkInTime,
-                ),
+                      // ========== E. ACTION SECTION ==========
+                      Center(
+                        child: AttendanceButton(
+                          action: _selectedAction,
+                          isEnabled: _isSecurityValid,
+                          onComplete: _onAttendanceComplete,
+                        ),
+                      ),
 
-                const SizedBox(height: 8),
-
-                // ========== D. MANUAL ACTION SELECTOR ==========
-                Center(
-                  child: AttendanceTypeSelector(
-                    selectedAction: _selectedAction,
-                    currentStatus: _currentStatus,
-                    onActionSelected: (action) {
-                      setState(() => _selectedAction = action);
-                    },
-                    isEnabled: _isSecurityValid,
+                      // ========== D. MANUAL ACTION SELECTOR ==========
+                      Center(
+                        child: AttendanceTypeSelector(
+                          selectedAction: _selectedAction,
+                          currentStatus: _currentStatus,
+                          onActionSelected: (action) {
+                            setState(() => _selectedAction = action);
+                          },
+                          isEnabled: _isSecurityValid,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-
-                const SizedBox(height: 16),
-
-                // ========== E. ACTION SECTION ==========
-                Center(
-                  child: AttendanceButton(
-                    action: _selectedAction,
-                    isEnabled:
-                        _isSecurityValid, // Manual override: always allow action if security is valid
-                    onComplete: _onAttendanceComplete,
-                  ),
-                ),
-
-                const SizedBox(height: 16),
               ],
             ),
             // Loading overlay
@@ -557,15 +557,11 @@ class _AttendanceScreenState extends State<AttendanceScreen>
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(10),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+      decoration: const BoxDecoration(
+        color: Colors.white, // White background
+        border: Border(
+          bottom: BorderSide(color: Color(0xFFE0E0E0), width: 1),
+        ),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -591,15 +587,14 @@ class _AttendanceScreenState extends State<AttendanceScreen>
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
+              color: AppColors.textPrimary, // Dark text
             ),
           ),
 
           // Refresh Button (Right)
           IconButton(
-            icon: const Icon(Icons.refresh, color: AppColors.textPrimary),
+            icon: Icon(Icons.refresh, color: AppColors.textPrimary),
             onPressed: () {
-              // Trigger slight haptic feedback
               _onRefresh();
             },
           ),
