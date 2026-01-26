@@ -204,7 +204,7 @@ class PersonalData {
   factory PersonalData.fromJson(Map<String, dynamic> json) {
     return PersonalData(
       empId: json['emp_id'] ?? '',
-      name: json['emp_name'] ?? '',
+      name: json['emp_full_name'] ?? json['emp_name'] ?? '',
       email: json['emp_email'],
       phone: json['emp_phone'],
       birthDate: json['emp_birth_date'],

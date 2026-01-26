@@ -74,7 +74,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
 
   void _startLocationTimer() {
     _stopLocationTimer(); // Safety check
-    _locationTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+    _locationTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
       if (mounted) {
         _checkLocation();
         _checkNetwork();
@@ -90,18 +90,9 @@ class _AttendanceScreenState extends State<AttendanceScreen>
   }
 
   Future<void> _initialize() async {
-    // Set auth token and emp_id for API calls
+    // Set auth token for API calls
     if (authState.token != null) {
       AttendanceApiService.setToken(authState.token!);
-    }
-
-    // For test mode: use emp_id from auth state (mock service)
-    // In real app this would come from the user profile
-    // For test mode: use emp_id from auth state (mock service)
-    // In real app this would come from the user profile
-    final empId = authState.empId;
-    if (empId != null) {
-      AttendanceApiService.setEmpId(empId.toString());
     }
 
     // Sync locations from server on app open (updates cache)
@@ -476,6 +467,39 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     );
   }
 
+  /// Show error popup when user taps disabled button
+  void _showSecurityError() {
+    String errorMessage;
+
+    if (!_isLocationValid && !_isNetworkValid) {
+      // Both invalid
+      errorMessage =
+          'WiFi and location isn\'t verified yet. Please check your WiFi connection and location and refresh.';
+    } else if (!_isLocationValid) {
+      // Only location invalid
+      errorMessage =
+          'Location isn\'t verified yet. Please check your location and refresh.';
+    } else {
+      // Only network invalid
+      errorMessage =
+          'WiFi isn\'t verified yet. Please check your WiFi connection and refresh.';
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cannot Proceed'),
+        content: Text(errorMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ============ BUILD ============
 
   @override
@@ -572,16 +596,27 @@ class _AttendanceScreenState extends State<AttendanceScreen>
             tooltip: 'Reset Attendance (Debug)',
             onPressed: () async {
               setState(() => _isLoading = true);
-              await AttendanceApiService.resetAttendance();
-              await _fetchAttendanceStatus();
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Attendance data reset!')),
-                );
+              try {
+                await AttendanceApiService.resetAttendance();
+                await _fetchAttendanceStatus();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Attendance data reset!')),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Reset failed: $e')),
+                  );
+                }
+              } finally {
+                if (mounted) setState(() => _isLoading = false);
               }
             },
           ),
 
+          // App Title
           Text(
             'Attendance',
             style: TextStyle(
