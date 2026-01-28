@@ -48,8 +48,8 @@ class ProfileService {
       if (response.statusCode == 200) {
         // Backend returns: {data: {data: [...], count: N}}
         final wrapper = response.data['data'];
-        List<dynamic> data = wrapper?['data'] ?? [];
-        if (data is! List) data = [];
+        var rawData = wrapper?['data'];
+        List<dynamic> data = rawData is List ? rawData : [];
         return ProfileResult.success(
           data.map((e) => Address.fromJson(e as Map<String, dynamic>)).toList(),
         );
@@ -69,8 +69,8 @@ class ProfileService {
       if (response.statusCode == 200) {
         // Backend returns: {data: {data: [...], count: N}}
         final wrapper = response.data['data'];
-        List<dynamic> data = wrapper?['data'] ?? [];
-        if (data is! List) data = [];
+        var rawData = wrapper?['data'];
+        List<dynamic> data = rawData is List ? rawData : [];
         return ProfileResult.success(
           data.map((e) => Contact.fromJson(e as Map<String, dynamic>)).toList(),
         );
@@ -90,8 +90,8 @@ class ProfileService {
       if (response.statusCode == 200) {
         // Backend returns: {data: {data: [...], count: N}}
         final wrapper = response.data['data'];
-        List<dynamic> data = wrapper?['data'] ?? [];
-        if (data is! List) data = [];
+        var rawData = wrapper?['data'];
+        List<dynamic> data = rawData is List ? rawData : [];
         return ProfileResult.success(
           data.map((e) => Family.fromJson(e as Map<String, dynamic>)).toList(),
         );
@@ -130,8 +130,8 @@ class ProfileService {
       if (response.statusCode == 200) {
         // Backend returns: {data: {data: [...], count: N}}
         final wrapper = response.data['data'];
-        List<dynamic> data = wrapper?['data'] ?? [];
-        if (data is! List) data = [];
+        var rawData = wrapper?['data'];
+        List<dynamic> data = rawData is List ? rawData : [];
         return ProfileResult.success(
           data
               .map((e) => EmergencyContact.fromJson(e as Map<String, dynamic>))

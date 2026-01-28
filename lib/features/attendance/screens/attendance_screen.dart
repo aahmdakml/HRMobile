@@ -44,6 +44,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
   // Times
   String? _checkInTime;
   String? _checkOutTime;
+  Duration _breakDuration = Duration.zero;
 
   // Current position
   Position? _currentPosition;
@@ -127,15 +128,33 @@ class _AttendanceScreenState extends State<AttendanceScreen>
           // Note: Time is for display only; server handles all timestamps
         }
 
-        // Determine current status from API response
+        // Calculate break duration if completed
+        if (status['break_in'] != null && status['break_out'] != null) {
+          try {
+            final breakIn = DateTime.parse(status['break_in']);
+            final breakOut = DateTime.parse(status['break_out']);
+            _breakDuration = breakOut.difference(breakIn);
+          } catch (e) {
+            _breakDuration = Duration.zero;
+          }
+        } else {
+          _breakDuration = Duration.zero;
+        }
+
+        // Determine current status and display times
         if (status['check_out'] != null) {
           _currentStatus = AttendanceStatus.shiftEnded;
+          _checkOutTime = _formatTime(status['check_out']);
         } else if (status['break_in'] != null && status['break_out'] == null) {
           _currentStatus = AttendanceStatus.onBreak;
+          // Use break_in time as "check out" for visual timer freezing
+          _checkOutTime = _formatTime(status['break_in']);
         } else if (status['check_in'] != null) {
           _currentStatus = AttendanceStatus.working;
+          _checkOutTime = null;
         } else {
           _currentStatus = AttendanceStatus.idle;
+          _checkOutTime = null;
         }
 
         // _selectedAction = _getSmartDefault(); // Manual override
@@ -403,6 +422,10 @@ class _AttendanceScreenState extends State<AttendanceScreen>
           );
           setState(() {
             _currentStatus = AttendanceStatus.onBreak;
+            // Set break start time as "check out" time to freeze timer
+            // Ensure we format it to HH:mm:ss so the footer parser understands it
+            _checkOutTime = _formatTime(
+                result['check_time'] ?? DateTime.now().toIso8601String());
             _selectedAction = _getSmartDefault();
           });
           break;
@@ -411,8 +434,32 @@ class _AttendanceScreenState extends State<AttendanceScreen>
             latitude: _currentPosition!.latitude,
             longitude: _currentPosition!.longitude,
           );
+
+          // Calculate the duration of this break session locally (Visual only)
+          if (_checkOutTime != null) {
+            try {
+              final parts = _checkOutTime!.split(':');
+              final now = DateTime.now();
+              final breakStart = DateTime(
+                now.year,
+                now.month,
+                now.day,
+                int.parse(parts[0]),
+                int.parse(parts[1]),
+                int.parse(parts[2]),
+              );
+              final breakEnd = DateTime.now(); // Approx resume time
+              final thisBreak = breakEnd.difference(breakStart);
+              _breakDuration += thisBreak;
+            } catch (e) {
+              debugPrint('VISUAL_TIMER: Error calculating break duration: $e');
+            }
+          }
+
           setState(() {
             _currentStatus = AttendanceStatus.working;
+            // Clear check out time to resume live ticking
+            _checkOutTime = null;
             _selectedAction = _getSmartDefault();
           });
           break;
@@ -438,7 +485,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     if (datetime == null) return '--:--';
     try {
       final dt = DateTime.parse(datetime).toLocal();
-      return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+      return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}:${dt.second.toString().padLeft(2, '0')}';
     } catch (e) {
       return datetime;
     }
@@ -574,6 +621,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
           checkOutTime: _checkOutTime,
           status: _currentStatus,
           serverTime: _serverTime,
+          breakDuration: _breakDuration,
         ),
       ),
     );
