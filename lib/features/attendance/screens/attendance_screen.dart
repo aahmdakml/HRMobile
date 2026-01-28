@@ -494,7 +494,9 @@ class _AttendanceScreenState extends State<AttendanceScreen>
           break;
       }
 
-      _showSuccess('${_selectedAction.label} successful!');
+      String successMessage =
+          result['message'] ?? '${_selectedAction.label} successful!';
+      _showSuccessDialog(successMessage);
     } catch (e) {
       _showError(e.toString().replaceAll('Exception: ', ''));
     }
@@ -520,13 +522,26 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     );
   }
 
-  void _showSuccess(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
+  void _showSuccessDialog(String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.check_circle, color: AppColors.checkIn),
+            SizedBox(width: 8),
+            Text('Success'),
+          ],
+        ),
         content: Text(message),
-        backgroundColor: AppColors.checkIn,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
       ),
     );
   }
