@@ -2,7 +2,109 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_app/features/leave/models/leave_model.dart';
 import 'package:mobile_app/features/leave/services/leave_service.dart';
 
-// State class for leave list to hold both data and balance
+// --- FILTER STATE ---
+class LeaveFilterState {
+  final String? search;
+  final String? status;
+  final String? typeCode;
+  final DateTime? startDate;
+  final DateTime? endDate;
+
+  const LeaveFilterState({
+    this.search,
+    this.status,
+    this.typeCode,
+    this.startDate,
+    this.endDate,
+  });
+
+  bool get hasFilters =>
+      (search != null && search!.isNotEmpty) ||
+      status != null ||
+      typeCode != null ||
+      startDate != null ||
+      endDate != null;
+
+  int get activeFilterCount {
+    int count = 0;
+    if (search != null && search!.isNotEmpty) count++;
+    if (status != null) count++;
+    if (typeCode != null) count++;
+    if (startDate != null || endDate != null) count++;
+    return count;
+  }
+
+  LeaveFilterState copyWith({
+    String? search,
+    String? status,
+    String? typeCode,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) {
+    return LeaveFilterState(
+      search: search ?? this.search,
+      status: status ?? this.status,
+      typeCode: typeCode ?? this.typeCode,
+      startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
+    );
+  }
+}
+
+class LeaveFilterNotifier extends StateNotifier<LeaveFilterState> {
+  LeaveFilterNotifier() : super(const LeaveFilterState());
+
+  void setSearch(String query) {
+    state = LeaveFilterState(
+      search: query,
+      status: state.status,
+      typeCode: state.typeCode,
+      startDate: state.startDate,
+      endDate: state.endDate,
+    );
+  }
+
+  void setStatus(String? status) {
+    state = LeaveFilterState(
+      search: state.search,
+      status: status,
+      typeCode: state.typeCode,
+      startDate: state.startDate,
+      endDate: state.endDate,
+    );
+  }
+
+  void setType(String? typeCode) {
+    state = LeaveFilterState(
+      search: state.search,
+      status: state.status,
+      typeCode: typeCode,
+      startDate: state.startDate,
+      endDate: state.endDate,
+    );
+  }
+
+  void setDateRange(DateTime? start, DateTime? end) {
+    state = LeaveFilterState(
+      search: state.search,
+      status: state.status,
+      typeCode: state.typeCode,
+      startDate: start,
+      endDate: end,
+    );
+  }
+
+  void reset() {
+    state = const LeaveFilterState();
+  }
+}
+
+final leaveFilterProvider =
+    StateNotifierProvider<LeaveFilterNotifier, LeaveFilterState>((ref) {
+  return LeaveFilterNotifier();
+});
+
+// --- LIST STATE ---
 class LeaveListState {
   final List<LeaveModel> leaves;
   final List<LeaveBalance> balances;
@@ -25,14 +127,23 @@ class LeaveListState {
 
 // Controller
 class LeaveListNotifier extends StateNotifier<AsyncValue<LeaveListState>> {
-  LeaveListNotifier() : super(const AsyncValue.loading()) {
+  final Ref ref;
+
+  LeaveListNotifier(this.ref) : super(const AsyncValue.loading()) {
     fetchLeaves();
   }
 
   Future<void> fetchLeaves() async {
     state = const AsyncValue.loading();
     try {
-      final result = await LeaveService.getLeaves();
+      final filter = ref.read(leaveFilterProvider);
+      final result = await LeaveService.getLeaves(
+        search: filter.search,
+        status: filter.status,
+        type: filter.typeCode,
+        startDate: filter.startDate,
+        endDate: filter.endDate,
+      );
       final leaveState = LeaveListState(
         leaves: result['data'] as List<LeaveModel>,
         balances: result['balance'] as List<LeaveBalance>,
@@ -44,26 +155,15 @@ class LeaveListNotifier extends StateNotifier<AsyncValue<LeaveListState>> {
   }
 
   Future<void> refresh() async {
-    // Retain previous data while loading if desired, or just load
-    // state = const AsyncValue.loading();
     await fetchLeaves();
   }
 
   // Optimistic update for cancellation
   Future<void> cancelLeave(String id) async {
-    final previousState = state;
-    if (previousState.hasValue) {
-      final current = previousState.value!;
-      state = AsyncValue.data(current.copyWith(
-        leaves: current.leaves.where((l) => l.id != id).toList(),
-      ));
-    }
-
     try {
-      await LeaveService.cancelLeave(id);
+      await LeaveService.deleteLeave(id);
       await refresh();
     } catch (e) {
-      state = previousState; // Revert
       rethrow;
     }
   }
@@ -72,5 +172,17 @@ class LeaveListNotifier extends StateNotifier<AsyncValue<LeaveListState>> {
 // Provider
 final leaveListProvider =
     StateNotifierProvider<LeaveListNotifier, AsyncValue<LeaveListState>>((ref) {
-  return LeaveListNotifier();
+  // Listen to filter changes and re-fetch automatically
+  ref.listen(leaveFilterProvider, (previous, next) {
+    if (previous != next) {
+      ref.read(leaveListControllerProvider.notifier).fetchLeaves();
+    }
+  });
+  return ref.read(leaveListControllerProvider.notifier);
+});
+
+// Internal provider to avoid circular dependency in constructor
+final leaveListControllerProvider =
+    StateNotifierProvider<LeaveListNotifier, AsyncValue<LeaveListState>>((ref) {
+  return LeaveListNotifier(ref);
 });

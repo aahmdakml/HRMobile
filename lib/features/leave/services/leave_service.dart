@@ -10,6 +10,7 @@ class LeaveService {
   static Future<Map<String, dynamic>> getLeaves({
     int page = 1,
     int limit = 10,
+    String? search,
     String? status,
     String? type,
     DateTime? startDate,
@@ -21,6 +22,7 @@ class LeaveService {
         'offset': (page - 1) * limit,
       };
 
+      if (search != null) queryParams['search'] = search;
       if (status != null) queryParams['status'] = status;
       if (type != null) queryParams['leave_type'] = type;
       if (startDate != null)
@@ -31,6 +33,7 @@ class LeaveService {
           await apiClient.get(_baseUrl, queryParameters: queryParams);
 
       final responseData = response.data['data'];
+      print('LEAVE_LIST_RAW: $responseData');
 
       // Parse leaves list
       final List<dynamic> listJson = responseData['data'] ?? [];
@@ -98,7 +101,7 @@ class LeaveService {
     required DateTime endDate,
     required String description,
     required List<String> dates, // Specific dates list
-    String? attachmentPath,
+    List<String> attachmentPaths = const [],
   }) async {
     try {
       final payload = {
@@ -111,25 +114,36 @@ class LeaveService {
       };
 
       Response response;
-      if (attachmentPath != null) {
-        final formData = FormData.fromMap(payload);
+      if (attachmentPaths.isNotEmpty) {
+        // Construct FormData manually to ensure arrays are sent correctly with []
+        final formData = FormData();
 
-        // Manual array append for Dio FormData to ensure backend receives array
-        // Remove the list from map first if fromMap automatically adds it incorrectly?
-        // Actually Dio FormData.fromMap handles lists as key[] usually.
-        // But to be safe with Laravel, we can iterate if needed.
-        // Let's rely on standard behavior first.
+        // Add regular fields
+        formData.fields.add(MapEntry('timeoff_code', timeoffCode));
+        formData.fields.add(MapEntry(
+            'emp_leave_date_start', startDate.toIso8601String().split('T')[0]));
+        formData.fields.add(MapEntry(
+            'emp_leave_date_end', endDate.toIso8601String().split('T')[0]));
+        formData.fields
+            .add(MapEntry('emp_leave_total_day', dates.length.toString()));
+        formData.fields.add(MapEntry('emp_leave_description', description));
 
-        formData.files.add(MapEntry(
-          'emp_leave_attachment',
-          await MultipartFile.fromFile(attachmentPath),
-        ));
+        // Add array fields - KEY MUST HAVE [] FOR LARAVEL VALIDATION
+        for (var date in dates) {
+          formData.fields.add(MapEntry('emp_leave_det_date[]', date));
+        }
 
-        // NOTE: If dates array fails in FormData, we might need to loop:
-        // for (var date in dates) formData.fields.add(MapEntry('emp_leave_det_date[]', date));
+        // Add files
+        for (var path in attachmentPaths) {
+          formData.files.add(MapEntry(
+            'emp_leave_attachments[]',
+            await MultipartFile.fromFile(path),
+          ));
+        }
 
         response = await apiClient.post(_baseUrl, data: formData);
       } else {
+        // For JSON requests, Dio handles list properly
         response = await apiClient.post(_baseUrl, data: payload);
       }
 
@@ -142,7 +156,22 @@ class LeaveService {
   }
 
   /// Cancel leave request
-  static Future<void> cancelLeave(String id) async {
+  /// Delete/Cancel leave request
+  static Future<void> deleteLeave(String id) async {
     await apiClient.delete('$_baseUrl/$id');
+  }
+
+  /// Get Leave Details including approval history
+  static Future<LeaveModel> getLeaveDetail(String id) async {
+    try {
+      // Use LeaveController endpoint as it includes 'employeeTransactionFiles' for attachments
+      final response = await apiClient.get('$_baseUrl/$id');
+
+      print('LEAVE_DETAIL_RAW: ${response.data}');
+
+      return LeaveModel.fromJson(response.data['data']);
+    } catch (e) {
+      rethrow;
+    }
   }
 }

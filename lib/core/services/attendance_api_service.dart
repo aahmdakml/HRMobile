@@ -48,17 +48,34 @@ class AttendanceApiService {
 
   /// Get allowed office locations - FROM CACHE (for 5-sec checks)
   /// Use syncLocations() to refresh from server
+  /// Cache auto-expires after 6 hours
   static Future<List<Map<String, dynamic>>> getLocations() async {
     // Try cache first
     final cached = await CacheService.getData(_cacheKeyLocations);
-    if (cached != null && cached is List) {
-      debugPrint('CACHE: Using cached locations (${cached.length} items)');
-      return List<Map<String, dynamic>>.from(
-          cached.map((e) => Map<String, dynamic>.from(e)));
+
+    if (cached != null && cached is Map) {
+      // Check if cache has expired (6 hours = 21600000 ms)
+      final timestamp = cached['timestamp'] as int?;
+      final data = cached['data'] as List?;
+
+      if (timestamp != null && data != null) {
+        final cacheAge = DateTime.now().millisecondsSinceEpoch - timestamp;
+        const maxCacheAge = 6 * 60 * 60 * 1000; // 6 hours in milliseconds
+
+        if (cacheAge < maxCacheAge) {
+          debugPrint(
+              'CACHE: Using cached locations (${data.length} items, age: ${(cacheAge / 1000 / 60).toStringAsFixed(1)} min)');
+          return List<Map<String, dynamic>>.from(
+              data.map((e) => Map<String, dynamic>.from(e)));
+        } else {
+          debugPrint(
+              'CACHE: Cache expired (age: ${(cacheAge / 1000 / 60 / 60).toStringAsFixed(1)} hours) - fetching fresh data');
+        }
+      }
     }
 
-    // No cache? Fetch from server (first time)
-    debugPrint('CACHE: No cache found, fetching from server...');
+    // No cache or expired? Fetch from server (first time or after expiry)
+    debugPrint('CACHE: No valid cache found, fetching from server...');
     return await syncLocations();
   }
 
@@ -76,9 +93,6 @@ class AttendanceApiService {
       try {
         final statusResponse = await _dio.get('/status');
         final serverTimeStr = statusResponse.data['data']['server_time'];
-        // Note: Real API might not return server_time in status,
-        // if not, we rely on standard headers or separate endpoint.
-        // Assuming current controller structure:
         if (serverTimeStr != null) {
           final serverTime = DateTime.tryParse(serverTimeStr);
           if (serverTime != null) {
@@ -90,9 +104,14 @@ class AttendanceApiService {
         debugPrint('API: Warning - could not sync server time: $e');
       }
 
-      // 3. Save Locations to cache
-      await CacheService.setData(_cacheKeyLocations, data);
-      debugPrint('CACHE: Saved ${data.length} locations to cache');
+      // 3. Save Locations to cache WITH TIMESTAMP for expiry tracking
+      final cacheData = {
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+        'data': data,
+      };
+      await CacheService.setData(_cacheKeyLocations, cacheData);
+      debugPrint(
+          'CACHE: Saved ${data.length} locations to cache with timestamp');
 
       return data;
     } on DioException catch (e) {
@@ -120,6 +139,9 @@ class AttendanceApiService {
     try {
       final bssid = mac ?? await _getWifiBssid();
 
+      debugPrint(
+          'API: checkIn request - lat: $latitude, lng: $longitude, mac: $bssid');
+
       final response = await _dio.post(
         '/check-in',
         data: {
@@ -128,8 +150,14 @@ class AttendanceApiService {
           if (bssid != null) 'mac_address': bssid,
         },
       );
+
+      debugPrint(
+          'API: checkIn response - ${response.statusCode} - ${response.data}');
+
       return response.data['data'];
     } on DioException catch (e) {
+      debugPrint(
+          'API: checkIn ERROR - ${e.response?.statusCode} - ${e.response?.data}');
       throw Exception(e.response?.data['message'] ?? 'Check-in failed');
     }
   }
