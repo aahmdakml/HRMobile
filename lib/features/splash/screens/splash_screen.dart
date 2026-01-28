@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_app/core/theme/app_colors.dart';
+import 'package:mobile_app/core/constants/asset_paths.dart';
 import 'package:mobile_app/core/services/auth_service.dart';
 import 'package:mobile_app/features/auth/screens/login_screen.dart';
 import 'package:mobile_app/features/main/main_shell.dart';
@@ -116,9 +117,10 @@ class _SplashScreenState extends State<SplashScreen>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     // Logo Icon
+                    // Logo Icon
                     Container(
-                      width: 100,
-                      height: 100,
+                      width: 120,
+                      height: 120,
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(24),
@@ -130,10 +132,10 @@ class _SplashScreenState extends State<SplashScreen>
                           ),
                         ],
                       ),
-                      child: Icon(
-                        Icons.business_center,
-                        size: 50,
-                        color: AppColors.primary,
+                      padding: const EdgeInsets.all(16),
+                      child: Image.asset(
+                        AssetPaths.logo,
+                        fit: BoxFit.contain,
                       ),
                     ),
                     const SizedBox(height: 24),

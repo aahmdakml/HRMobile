@@ -51,58 +51,92 @@ class LeaveService {
     }
   }
 
+  /// Get available timeoff types
+  static Future<List<TimeoffCompany>> getTimeoffTypes(String companyId) async {
+    try {
+      final response = await apiClient.get(
+        '/company/$companyId/timeoff',
+        queryParameters: {
+          'offset': 0,
+          'limit': 100,
+          'type': 'LEAVE',
+        },
+      );
+
+      final List<dynamic> listJson = response.data['data']['data'] ?? [];
+      return listJson.map((json) => TimeoffCompany.fromJson(json)).toList();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Get approval flow for employee
+  static Future<List<EmployeeSpvApproval>> getApprovalFlow(String empId) async {
+    try {
+      final response = await apiClient.get(
+        '/hris/employee-spv-approval',
+        queryParameters: {
+          'emp_id': empId,
+          'module_code': 'LEAVE',
+        },
+      );
+
+      final List<dynamic> listJson = response.data['data'] ?? [];
+      print('empId1: $empId');
+      return listJson
+          .map((json) => EmployeeSpvApproval.fromJson(json))
+          .toList();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   /// Create new leave request
   static Future<LeaveModel> createLeave({
     required String timeoffCode,
     required DateTime startDate,
     required DateTime endDate,
     required String description,
+    required List<String> dates, // Specific dates list
     String? attachmentPath,
   }) async {
     try {
-      // Calculate total days (inclusive)
-      final duration = endDate.difference(startDate).inDays + 1;
-
-      // Generate date array
-      final List<String> dates = [];
-      for (int i = 0; i < duration; i++) {
-        dates.add(
-            startDate.add(Duration(days: i)).toIso8601String().split('T')[0]);
-      }
-
-      // Payload map
-      final Map<String, dynamic> payload = {
+      final payload = {
         'timeoff_code': timeoffCode,
         'emp_leave_date_start': startDate.toIso8601String().split('T')[0],
         'emp_leave_date_end': endDate.toIso8601String().split('T')[0],
-        'emp_leave_total_day': duration,
+        'emp_leave_total_day': dates.length,
         'emp_leave_description': description,
         'emp_leave_det_date': dates,
       };
 
       Response response;
       if (attachmentPath != null) {
-        // Use FormData if attachment exists
         final formData = FormData.fromMap(payload);
-        // Add dates as array manually if needed, but for simplicity relying on JSON is better.
-        // However, if attachment is present, we MUST use FormData.
-        // Dio FormData array support:
-        // By default Dio sends list as key[] which Laravel accepts.
-        // But to be safe, if we have issues, checking how Dio handles it.
-        // Let's stick to Map for now for FormData, but JSON is preferred.
+
+        // Manual array append for Dio FormData to ensure backend receives array
+        // Remove the list from map first if fromMap automatically adds it incorrectly?
+        // Actually Dio FormData.fromMap handles lists as key[] usually.
+        // But to be safe with Laravel, we can iterate if needed.
+        // Let's rely on standard behavior first.
 
         formData.files.add(MapEntry(
           'emp_leave_attachment',
           await MultipartFile.fromFile(attachmentPath),
         ));
+
+        // NOTE: If dates array fails in FormData, we might need to loop:
+        // for (var date in dates) formData.fields.add(MapEntry('emp_leave_det_date[]', date));
+
         response = await apiClient.post(_baseUrl, data: formData);
       } else {
-        // Use JSON
         response = await apiClient.post(_baseUrl, data: payload);
       }
 
       return LeaveModel.fromJson(response.data['data']);
     } catch (e) {
+      // Log error for debugging
+      print('Leave Create Error: $e');
       rethrow;
     }
   }

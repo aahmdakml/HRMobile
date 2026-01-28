@@ -59,75 +59,357 @@ class LeaveListScreen extends ConsumerWidget {
                 topRight: Radius.circular(28),
               ),
               child: leaveState.when(
-                data: (state) => CustomScrollView(
-                  slivers: [
-                    // Balance Cards (Horizontal)
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                data: (state) {
+                  // Calculate Balances
+                  final currentYear = DateTime.now().year;
+                  final lastYear = currentYear - 1;
+
+                  final currentBalance = state.balances
+                      .firstWhere((b) => b.year == currentYear,
+                          orElse: () =>
+                              LeaveBalance(year: currentYear, remaining: 0))
+                      .remaining;
+
+                  final lastBalance = state.balances
+                      .firstWhere((b) => b.year == lastYear,
+                          orElse: () =>
+                              LeaveBalance(year: lastYear, remaining: 0))
+                      .remaining;
+
+                  final totalBalance = currentBalance + lastBalance;
+
+                  // Constants for layout (matching HomeScreen but refined for Leave)
+                  const double cardHeight = 180; // Reduced to 180
+                  const double overlapAmount = 80; // Reduced to 80
+
+                  return SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        Stack(
+                          clipBehavior: Clip.none,
                           children: [
-                            Text(
-                              'Leave Balance',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
+                            // 1. White Background Container (starts mid-way)
+                            Positioned(
+                              top: cardHeight - overlapAmount,
+                              left: 0,
+                              right: 0,
+                              bottom: 0, // Extend to bottom of stack
+                              child: Container(
+                                decoration: const BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.only(
+                                    topLeft: Radius.circular(30),
+                                    topRight: Radius.circular(30),
+                                  ),
+                                ),
                               ),
                             ),
-                            const SizedBox(height: 16),
-                            _buildBalanceSection(ref, state.balances),
-                          ],
-                        ),
-                      ),
-                    ),
 
-                    // History Title
-                    SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(20, 32, 20, 12),
-                      sliver: SliverToBoxAdapter(
-                        child: Text(
-                          'History',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // History List
-                    state.leaves.isEmpty
-                        ? const SliverFillRemaining(
-                            hasScrollBody: false,
-                            child: Center(
+                            // 2. Content
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 20),
                               child: Column(
-                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.history,
-                                      size: 48, color: Colors.grey),
-                                  SizedBox(height: 12),
-                                  Text('No leave history found',
-                                      style: TextStyle(color: Colors.grey)),
+                                  const SizedBox(
+                                      height: 10), // Space from AppBar
+
+                                  // --- MAIN SUMMARY CARD (Purple Gradient) ---
+                                  Container(
+                                    height: cardHeight,
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 24,
+                                        vertical:
+                                            18), // Reduced vertical padding to fix overflow
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(
+                                        colors: [
+                                          Color(0xFFA855F7), // Purple
+                                          Color(0xFF7C3AED), // Darker Violet
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ),
+                                      borderRadius: BorderRadius.circular(24),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: const Color(0xFFA855F7)
+                                              .withOpacity(0.4),
+                                          blurRadius: 20,
+                                          offset: const Offset(0, 10),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        // Header
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  'Total Balance',
+                                                  style: TextStyle(
+                                                    color: Colors.white
+                                                        .withOpacity(0.8),
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  '$totalBalance Days',
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 32,
+                                                    fontWeight: FontWeight.bold,
+                                                    letterSpacing: -1,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            Container(
+                                              padding: const EdgeInsets.all(10),
+                                              decoration: BoxDecoration(
+                                                color: Colors.white
+                                                    .withOpacity(0.2),
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: const Icon(
+                                                  Icons.flight_takeoff,
+                                                  color: Colors.white,
+                                                  size: 24),
+                                            ),
+                                          ],
+                                        ),
+                                        const Spacer(),
+
+                                        // Divider
+                                        Divider(
+                                            color:
+                                                Colors.white.withOpacity(0.2)),
+                                        const SizedBox(height: 12),
+
+                                        // Breakdown Row
+                                        Row(
+                                          children: [
+                                            // Last Year
+                                            Expanded(
+                                              child: Row(
+                                                children: [
+                                                  Container(
+                                                    padding:
+                                                        const EdgeInsets.all(6),
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.white
+                                                          .withOpacity(0.15),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              8),
+                                                    ),
+                                                    child: const Icon(
+                                                        Icons.history,
+                                                        color: Colors.white,
+                                                        size: 16),
+                                                  ),
+                                                  const SizedBox(width: 10),
+                                                  Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      Text(
+                                                        'Last Year',
+                                                        style: TextStyle(
+                                                          color: Colors.white
+                                                              .withOpacity(0.7),
+                                                          fontSize: 10,
+                                                        ),
+                                                      ),
+                                                      Text(
+                                                        '$lastBalance',
+                                                        style: const TextStyle(
+                                                          color: Colors.white,
+                                                          fontSize: 16,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            // Vertical Divider
+                                            Container(
+                                              width: 1,
+                                              height: 30,
+                                              color:
+                                                  Colors.white.withOpacity(0.2),
+                                            ),
+                                            const SizedBox(width: 16),
+                                            // Current Year
+                                            Expanded(
+                                              child: Row(
+                                                children: [
+                                                  Container(
+                                                    padding:
+                                                        const EdgeInsets.all(6),
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.white
+                                                          .withOpacity(0.15),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              8),
+                                                    ),
+                                                    child: const Icon(
+                                                        Icons
+                                                            .calendar_today_outlined,
+                                                        color: Colors.white,
+                                                        size: 16),
+                                                  ),
+                                                  const SizedBox(width: 10),
+                                                  Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      Text(
+                                                        'This Year',
+                                                        style: TextStyle(
+                                                          color: Colors.white
+                                                              .withOpacity(0.7),
+                                                          fontSize: 10,
+                                                        ),
+                                                      ),
+                                                      Text(
+                                                        '$currentBalance',
+                                                        style: const TextStyle(
+                                                          color: Colors.white,
+                                                          fontSize: 16,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
-                          )
-                        : SliverList(
-                            delegate: SliverChildBuilderDelegate(
-                              (context, index) =>
-                                  _LeaveCard(leave: state.leaves[index]),
-                              childCount: state.leaves.length > 3
-                                  ? 3
-                                  : state.leaves.length,
-                            ),
-                          ),
+                          ],
+                        ),
 
-                    const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
-                  ],
-                ),
+                        // --- WHITE BODY SECTION ---
+                        Container(
+                          color: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 20),
+
+                              // Action Button
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (_) =>
+                                              const LeaveFormScreen()),
+                                    );
+                                  },
+                                  icon: const Icon(Icons.add_circle_outline),
+                                  label: const Text('New Leave Request'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFFF3F4F6),
+                                    foregroundColor: AppColors.primary,
+                                    elevation: 0,
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 14),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                    textStyle: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+
+                              const SizedBox(height: 28),
+
+                              // History Title
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'Recent History',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                  ),
+                                  TextButton(
+                                    onPressed: () {},
+                                    child: const Text('View All'),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12), // Increased spacing
+
+                              // History List
+                              if (state.leaves.isEmpty)
+                                Container(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 40),
+                                  alignment: Alignment.center,
+                                  child: Column(
+                                    children: [
+                                      Icon(Icons.history,
+                                          size: 48,
+                                          color: Colors.grey.shade300),
+                                      const SizedBox(height: 12),
+                                      Text('No leave history found',
+                                          style: TextStyle(
+                                              color: Colors.grey.shade500)),
+                                    ],
+                                  ),
+                                )
+                              else
+                                ...state.leaves.map((leave) => Padding(
+                                      padding: const EdgeInsets.only(
+                                          bottom:
+                                              16), // Increased spacing between cards
+                                      child: _LeaveCard(leave: leave),
+                                    )),
+                              const SizedBox(height: 40),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (err, stack) => Center(
                   child: Column(
@@ -169,122 +451,6 @@ class LeaveListScreen extends ConsumerWidget {
             ),
           ),
         ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const LeaveFormScreen()),
-          );
-        },
-        backgroundColor: AppColors.primary,
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('New Request',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-      ),
-    );
-  }
-
-  Widget _buildBalanceSection(WidgetRef ref, List<LeaveBalance> balances) {
-    if (balances.isEmpty) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.background,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          children: [
-            const Text('No balance data available',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey)),
-            const SizedBox(height: 8),
-            TextButton.icon(
-              onPressed: () => ref.read(leaveListProvider.notifier).refresh(),
-              icon: const Icon(Icons.refresh, size: 16),
-              label: const Text('Refresh'),
-            ),
-            const Text(
-              '(Check DB: LeaveBalance table)',
-              style: TextStyle(fontSize: 10, color: Colors.grey),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return SizedBox(
-      height: 120, // Increased height slightly
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: balances.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
-        itemBuilder: (context, index) {
-          final balance = balances[index];
-          // Vibrant Gradients
-          final List<Color> gradientColors = index % 2 == 0
-              ? [const Color(0xFF6366F1), const Color(0xFF818CF8)] // Indigo
-              : [const Color(0xFFEC4899), const Color(0xFFF472B6)]; // Pink
-
-          return Container(
-            width: 160,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: gradientColors,
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: gradientColors[0].withOpacity(0.4),
-                  blurRadius: 10,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.calendar_month,
-                        color: Colors.white, size: 18),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Year ${balance.year}',
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-                const Spacer(),
-                Text(
-                  '${balance.remaining}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const Text(
-                  'Days Remaining',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
       ),
     );
   }
@@ -373,6 +539,7 @@ class _LeaveCard extends StatelessWidget {
                     ),
 
                     // Duration Badge (Neutral)
+                    const SizedBox(width: 12),
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 6),

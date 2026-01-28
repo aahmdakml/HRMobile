@@ -134,3 +134,64 @@ class LeaveBalance {
     );
   }
 }
+
+class TimeoffCompany {
+  final String code;
+  final String? name; // From relation
+  final int? maxDays;
+  final bool needsApproval;
+
+  const TimeoffCompany({
+    required this.code,
+    this.name,
+    this.maxDays,
+    required this.needsApproval,
+  });
+
+  factory TimeoffCompany.fromJson(Map<String, dynamic> json) {
+    // Safe parse for maxDays that can be string or int
+    int? parseMaxDays(dynamic value) {
+      if (value == null) return null;
+      if (value is int) return value;
+      if (value is double) return value.toInt();
+      final parsed = int.tryParse(value.toString());
+      return parsed;
+    }
+
+    return TimeoffCompany(
+      code: json['timeoff_code'] ?? '',
+      name: json['timeoff_types']?['timeoff_name'],
+      maxDays: parseMaxDays(json['tc_max_days']),
+      needsApproval: json['tc_needs_approval'] == true ||
+          json['tc_needs_approval'] == 1 ||
+          json['tc_needs_approval'] == '1',
+    );
+  }
+}
+
+class EmployeeSpvApproval {
+  final String id;
+  final String approverName;
+  final String? approverTitle;
+  final String? approverCompany;
+
+  const EmployeeSpvApproval({
+    required this.id,
+    required this.approverName,
+    this.approverTitle,
+    this.approverCompany,
+  });
+
+  factory EmployeeSpvApproval.fromJson(Map<String, dynamic> json) {
+    final toEmployee = json['to_employee'] ?? {};
+    return EmployeeSpvApproval(
+      id: json['id']?.toString() ?? '',
+      approverName: toEmployee['emp_name'] ??
+          toEmployee['emp_full_name'] ??
+          json['emp_id_to'] ??
+          '-',
+      approverTitle: toEmployee['job_title'],
+      approverCompany: toEmployee['company'],
+    );
+  }
+}

@@ -1,6 +1,6 @@
 name: mobile_app
 description: "HRIS Mobile App - Employee Self Service"
-publish_to: 'none'
+publish_to: "none"
 
 version: 1.0.0+1
 
@@ -12,48 +12,51 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
-  
+
   # UI
   cupertino_icons: ^1.0.8
-  
+
   # State Management
   flutter_riverpod: ^2.5.1
   riverpod_annotation: ^2.3.5
-  
+
   # Networking
   dio: ^5.4.3+1
   retrofit: ^4.1.0
-  
+
   # Routing
   auto_route: ^7.9.2
-  
+
   # Local Storage
   hive: ^2.2.3
   hive_flutter: ^1.1.0
   flutter_secure_storage: ^9.0.0
-  
+
   # Auth
   google_sign_in: ^6.2.1
-  
+
   # Location (for GPS clock-in)
   geolocator: ^11.0.0
-  
+
   # Utilities
   connectivity_plus: ^6.0.3
   intl: ^0.20.2
   json_annotation: ^4.8.1
   cached_network_image: ^3.3.1
   shimmer: ^3.0.0
-  
+  network_info_plus: ^7.0.0
+
   # Localization
   slang: ^3.31.2
   slang_flutter: ^3.31.0
+  sqflite: ^2.4.2
+  path: ^1.9.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
-  
+
   # Code Generation
   build_runner: ^2.4.9
   json_serializable: ^6.7.1
@@ -62,10 +65,17 @@ dev_dependencies:
   riverpod_generator: ^2.4.0
   hive_generator: ^2.0.1
   slang_build_runner: ^3.31.0
+  flutter_launcher_icons: ^0.14.3
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/images/Saraswanti-logo-icon.png"
+  min_sdk_android: 21
 
 flutter:
   uses-material-design: true
-  
+
   assets:
     - assets/images/
 

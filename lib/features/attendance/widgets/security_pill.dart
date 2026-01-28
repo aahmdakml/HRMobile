@@ -42,16 +42,31 @@ class SecurityPill extends StatelessWidget {
     );
   }
 
+  /// Factory for time/clock security pill
+  factory SecurityPill.time({
+    Key? key,
+    required bool isValid,
+  }) {
+    return SecurityPill(
+      key: key,
+      icon: Icons.access_time_filled,
+      label: isValid ? 'Time Synced' : 'Unverified Time',
+      isValid: isValid,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    // If not valid, use orange for Time/Warning, red for others?
+    // Current logic uses: contentColor = isValid ? checkIn : disabled
+    // We might want specific colors for invalid states
+    final contentColor = isValid ? AppColors.checkIn : Colors.grey.shade600;
     final backgroundColor = isValid
         ? AppColors.checkIn.withOpacity(0.15)
-        : AppColors.disabled.withOpacity(0.15);
-
-    final contentColor = isValid ? AppColors.checkIn : AppColors.disabled;
+        : Colors.grey.shade200;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: backgroundColor,
         borderRadius: BorderRadius.circular(20),
@@ -61,14 +76,14 @@ class SecurityPill extends StatelessWidget {
         children: [
           Icon(
             icon,
-            size: 16,
+            size: 14, // Smaller icon
             color: contentColor,
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 4),
           Text(
             label,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 10, // Smaller font
               fontWeight: FontWeight.w600,
               color: contentColor,
             ),

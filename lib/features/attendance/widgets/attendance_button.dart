@@ -189,7 +189,7 @@ class _AttendanceButtonState extends State<AttendanceButton>
 
   @override
   Widget build(BuildContext context) {
-    const double size = 200;
+    const double size = 160; // Scaled down from 200
 
     return AnimatedBuilder(
       animation: Listenable.merge([_scaleAnimation, _cancelPulseAnimation]),
@@ -255,7 +255,7 @@ class _AttendanceButtonState extends State<AttendanceButton>
                 ),
                 child: Icon(
                   Icons.fingerprint,
-                  size: 56,
+                  size: 44,
                   color: Colors.white,
                 ),
               ),

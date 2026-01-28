@@ -21,7 +21,8 @@ class AppConfig {
         defaultValue: 'https://api.saraswanti.com/api/v1',
       );
     }
-    // Development API - allows HTTP for local testing
+    // Development API - localhost works with adb reverse for physical device
+    // Use 10.0.2.2 for emulator without adb reverse
     return const String.fromEnvironment(
       'API_BASE_URL',
       defaultValue: 'http://localhost:8000/api/v1',

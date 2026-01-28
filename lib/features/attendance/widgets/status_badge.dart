@@ -89,7 +89,8 @@ class _StatusBadgeState extends State<StatusBadge>
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(
+          horizontal: 12, vertical: 8), // Scaled down padding
       decoration: BoxDecoration(
         color: _statusColor.withOpacity(0.1),
         borderRadius: BorderRadius.circular(24),
@@ -106,8 +107,8 @@ class _StatusBadgeState extends State<StatusBadge>
             animation: _pulseAnimation,
             builder: (context, child) {
               return Container(
-                width: 10,
-                height: 10,
+                width: 8, // Scaled down from 10
+                height: 8,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: _statusColor.withOpacity(
@@ -118,8 +119,8 @@ class _StatusBadgeState extends State<StatusBadge>
                           BoxShadow(
                             color: _statusColor
                                 .withOpacity(0.4 * _pulseAnimation.value),
-                            blurRadius: 8,
-                            spreadRadius: 2,
+                            blurRadius: 6, // Scaled down blur
+                            spreadRadius: 1, // Scaled down spread
                           ),
                         ]
                       : null,
@@ -127,12 +128,12 @@ class _StatusBadgeState extends State<StatusBadge>
               );
             },
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8), // Scaled down spacing
           // Status text
           Text(
             _statusText,
             style: TextStyle(
-              fontSize: 13,
+              fontSize: 12, // Scaled down from 13
               fontWeight: FontWeight.w600,
               color: _statusColor,
               letterSpacing: 0.5,

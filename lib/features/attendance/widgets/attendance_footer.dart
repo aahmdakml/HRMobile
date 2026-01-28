@@ -8,12 +8,14 @@ class AttendanceFooter extends StatefulWidget {
   final String? checkInTime; // e.g., "09:00"
   final String? checkOutTime; // e.g., "17:30"
   final AttendanceStatus status;
+  final DateTime? serverTime; // Server time for accurate duration calculation
 
   const AttendanceFooter({
     super.key,
     this.checkInTime,
     this.checkOutTime,
     required this.status,
+    this.serverTime,
   });
 
   @override
@@ -24,6 +26,7 @@ class _AttendanceFooterState extends State<AttendanceFooter> {
   Timer? _workingTimer;
   Duration _workingDuration = Duration.zero;
   DateTime? _startTime;
+  DateTime? _simulatedServerTime; // Ticks locally every second for smooth display
 
   @override
   void initState() {
@@ -38,6 +41,10 @@ class _AttendanceFooterState extends State<AttendanceFooter> {
         oldWidget.checkInTime != widget.checkInTime) {
       _initializeTimer();
     }
+    // Resync simulated time when fresh server time arrives (every ~5s)
+    if (widget.serverTime != null && widget.serverTime != oldWidget.serverTime) {
+      _simulatedServerTime = widget.serverTime;
+    }
   }
 
   void _initializeTimer() {
@@ -45,16 +52,24 @@ class _AttendanceFooterState extends State<AttendanceFooter> {
 
     if (widget.status == AttendanceStatus.working &&
         widget.checkInTime != null) {
-      // Parse check-in time and calculate duration
+      // Parse check-in time
       _startTime = _parseTime(widget.checkInTime!);
+      // Initialize simulated server time
+      _simulatedServerTime = widget.serverTime ?? DateTime.now();
+      
       if (_startTime != null) {
         _updateWorkingDuration();
         _workingTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+          // Tick simulated time forward by 1 second
+          if (_simulatedServerTime != null) {
+            _simulatedServerTime = _simulatedServerTime!.add(const Duration(seconds: 1));
+          }
           _updateWorkingDuration();
         });
       }
     } else {
       _workingDuration = Duration.zero;
+      _simulatedServerTime = null;
     }
   }
 
@@ -70,9 +85,10 @@ class _AttendanceFooterState extends State<AttendanceFooter> {
   }
 
   void _updateWorkingDuration() {
-    if (_startTime != null) {
+    if (_startTime != null && _simulatedServerTime != null) {
+      // Use the simulated server time (immune to local time changes)
       setState(() {
-        _workingDuration = DateTime.now().difference(_startTime!);
+        _workingDuration = _simulatedServerTime!.difference(_startTime!);
       });
     }
   }
@@ -93,17 +109,17 @@ class _AttendanceFooterState extends State<AttendanceFooter> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      margin: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.border),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+            blurRadius: 6,
+            offset: const Offset(0, 1),
           ),
         ],
       ),
@@ -149,12 +165,12 @@ class _AttendanceFooterState extends State<AttendanceFooter> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 20, color: color.withOpacity(0.7)),
-          const SizedBox(height: 6),
+          Icon(icon, size: 16, color: color.withOpacity(0.7)),
+          const SizedBox(height: 4),
           Text(
             value,
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 14,
               fontWeight: FontWeight.w700,
               color: isLive ? color : AppColors.textPrimary,
             ),
@@ -163,7 +179,7 @@ class _AttendanceFooterState extends State<AttendanceFooter> {
           Text(
             label,
             style: TextStyle(
-              fontSize: 11,
+              fontSize: 10,
               color: AppColors.textMuted,
               fontWeight: FontWeight.w500,
             ),
@@ -176,7 +192,7 @@ class _AttendanceFooterState extends State<AttendanceFooter> {
   Widget _buildDivider() {
     return Container(
       width: 1,
-      height: 40,
+      height: 30,
       color: AppColors.border,
     );
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_app/core/models/user.dart';
 import 'package:mobile_app/core/services/auth_storage.dart';
 
@@ -81,3 +82,8 @@ class AuthState extends ChangeNotifier {
 
 /// Global auth state instance
 final authState = AuthState();
+
+/// Riverpod provider for AuthState
+final authStateProvider = ChangeNotifierProvider<AuthState>((ref) {
+  return AuthState();
+});
