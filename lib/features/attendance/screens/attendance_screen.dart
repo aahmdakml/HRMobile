@@ -549,12 +549,12 @@ class _AttendanceScreenState extends State<AttendanceScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            Column(
+    return Stack(
+      children: [
+        Scaffold(
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          body: SafeArea(
+            child: Column(
               children: [
                 // ========== A. HEADER SECTION ==========
                 _buildHeader(),
@@ -604,26 +604,26 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                 const SizedBox(height: 16),
               ],
             ),
-            // Loading overlay
-            if (_isLoading)
-              Container(
-                color: Colors.black.withOpacity(0.3),
-                child: const Center(
-                  child: CircularProgressIndicator(),
-                ),
-              ),
-          ],
+          ),
+          bottomNavigationBar: SafeArea(
+            child: AttendanceFooter(
+              checkInTime: _checkInTime,
+              checkOutTime: _checkOutTime,
+              status: _currentStatus,
+              serverTime: _serverTime,
+              breakDuration: _breakDuration,
+            ),
+          ),
         ),
-      ),
-      bottomNavigationBar: SafeArea(
-        child: AttendanceFooter(
-          checkInTime: _checkInTime,
-          checkOutTime: _checkOutTime,
-          status: _currentStatus,
-          serverTime: _serverTime,
-          breakDuration: _breakDuration,
-        ),
-      ),
+        // Loading overlay covering everything
+        if (_isLoading)
+          Container(
+            color: Colors.black.withOpacity(0.3),
+            child: const Center(
+              child: CircularProgressIndicator(),
+            ),
+          ),
+      ],
     );
   }
 
