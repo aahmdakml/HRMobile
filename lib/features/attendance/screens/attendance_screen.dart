@@ -222,6 +222,9 @@ class _AttendanceScreenState extends State<AttendanceScreen>
       // Fetch allowed locations and validate
       try {
         final locations = await AttendanceApiService.getLocations();
+
+        // Validating location...
+
         bool isValid = false;
         String matchedLocation = 'Out of range';
         List<String> validLog = []; // distinct logs
@@ -229,6 +232,9 @@ class _AttendanceScreenState extends State<AttendanceScreen>
         print('DOCS: Received ${locations.length} locations');
 
         for (var location in locations) {
+          final isEnableGps = location['is_enable_gps'] ?? true;
+          final name = location['location_name']?.toString() ?? 'Mobile';
+
           // Safe parsing helper
           double? safeParse(dynamic value) {
             if (value == null) return null;
@@ -237,29 +243,37 @@ class _AttendanceScreenState extends State<AttendanceScreen>
             return null;
           }
 
-          final lat = safeParse(location['latitude']);
-          final lng = safeParse(location['longitude']);
-          final radius = safeParse(location['radius']) ?? 100.0;
-          final name = location['location_name']?.toString() ?? 'Unknown';
-
-          if (lat == null || lng == null) {
-            debugPrint('DOCS: Invalid coordinates for $name');
-            continue;
-          }
-
-          final distance = Geolocator.distanceBetween(
-            _currentPosition!.latitude,
-            _currentPosition!.longitude,
-            lat,
-            lng,
-          );
-
-          validLog.add('$name: ${distance.toStringAsFixed(1)}m / ${radius}m');
-
-          if (distance <= radius) {
+          if (!isEnableGps) {
+            // Disabled: Skip check (Always pass criteria)
             isValid = true;
-            matchedLocation = name;
+            matchedLocation = 'Verified';
+            debugPrint('DOCS: ✓ Security Disabled (Skip GPS) for $name');
             break;
+          } else {
+            // Enabled: strict check
+            final lat = safeParse(location['latitude']);
+            final lng = safeParse(location['longitude']);
+            final radius = safeParse(location['radius']) ?? 100.0;
+
+            if (lat == null || lng == null) {
+              debugPrint('DOCS: Invalid coordinates for $name');
+              continue;
+            }
+
+            final distance = Geolocator.distanceBetween(
+              _currentPosition!.latitude,
+              _currentPosition!.longitude,
+              lat,
+              lng,
+            );
+
+            validLog.add('$name: ${distance.toStringAsFixed(1)}m / ${radius}m');
+
+            if (distance <= radius) {
+              isValid = true;
+              matchedLocation = name;
+              break;
+            }
           }
         }
 
@@ -298,17 +312,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
       final bssid = await info.getWifiBSSID();
       debugPrint('NETWORK: Connected WiFi BSSID (MAC): $bssid');
 
-      if (bssid == null || bssid == '02:00:00:00:00:00') {
-        // Not connected to WiFi or permission issue
-        setState(() {
-          _isNetworkValid = false;
-          _networkName = 'No WiFi';
-        });
-        debugPrint('NETWORK: No WiFi or permission denied');
-        return;
-      }
-
-      // Fetch allowed locations and check MAC
+      // Fetch allowed locations
       try {
         final locations = await AttendanceApiService.getLocations();
         bool isValid = false;
@@ -316,29 +320,44 @@ class _AttendanceScreenState extends State<AttendanceScreen>
 
         for (var location in locations) {
           final isEnableMac = location['is_enable_mac'] ?? false;
-          if (!isEnableMac) continue;
+          final name = location['location_name']?.toString() ?? 'Mobile';
 
-          final macList = location['mac'];
-          if (macList == null) continue;
-
-          // MAC can be a list or single string
-          List<String> allowedMacs = [];
-          if (macList is List) {
-            allowedMacs = macList.map((m) => m.toString()).toList();
-          } else if (macList is String) {
-            allowedMacs = [macList];
-          }
-
-          print(
-              'NETWORK: Location "${location['location_name']}" allowed MACs: $allowedMacs');
-
-          if (allowedMacs.contains(bssid)) {
+          if (!isEnableMac) {
+            // Disabled: Skip check (Always pass criteria)
             isValid = true;
-            matchedNetwork =
-                location['location_name']?.toString() ?? 'Office WiFi';
-            debugPrint('NETWORK: ✓ MAC matched for $matchedNetwork');
+            matchedNetwork = 'Verified';
+            debugPrint('NETWORK: ✓ Security Disabled (Skip Check) for $name');
             break;
+          } else {
+            // Enabled: strict check
+            if (bssid == null || bssid == '02:00:00:00:00:00') continue;
+
+            final macList = location['mac'];
+            if (macList == null) continue;
+
+            List<String> allowedMacs = [];
+            if (macList is List) {
+              allowedMacs = macList.map((m) => m.toString()).toList();
+            } else if (macList is String) {
+              allowedMacs = [macList];
+            }
+
+            if (allowedMacs.contains(bssid)) {
+              isValid = true;
+              matchedNetwork = name;
+              debugPrint('NETWORK: ✓ MAC matched for $name');
+              break;
+            }
           }
+        }
+
+        // If not valid and failed due to connection (and strict mode was enforced)
+        if (!isValid && (bssid == null || bssid == '02:00:00:00:00:00')) {
+          setState(() {
+            _isNetworkValid = false;
+            _networkName = 'No WiFi';
+          });
+          return;
         }
 
         setState(() {
@@ -346,7 +365,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
           _networkName = isValid ? matchedNetwork : 'Unknown Network';
         });
 
-        print(
+        debugPrint(
             'NETWORK: Validation result: isValid=$isValid, networkName=$_networkName');
       } catch (apiError) {
         debugPrint('NETWORK: API Error: $apiError');
