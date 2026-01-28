@@ -4,7 +4,6 @@ import 'package:geolocator/geolocator.dart';
 import 'package:network_info_plus/network_info_plus.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/services/attendance_api_service.dart';
-import '../../../core/services/auth_state.dart';
 import '../../../core/services/time_service.dart';
 import '../models/attendance_state.dart';
 import '../widgets/security_pill.dart';
@@ -92,9 +91,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
 
   Future<void> _initialize() async {
     // Set auth token for API calls
-    if (authState.token != null) {
-      AttendanceApiService.setToken(authState.token!);
-    }
+    // Token is handled globally by ApiClient interceptor now
 
     // Sync locations from server on app open (updates cache)
     try {
@@ -105,10 +102,87 @@ class _AttendanceScreenState extends State<AttendanceScreen>
       debugPrint('DEBUG: syncLocations() ERROR: $e');
     }
 
-    await _fetchAttendanceStatus();
+    // Check for pre-loaded data (from Login/Home)
+    bool usedCache = false;
+
+    // 1. Apply Cached Status
+    if (AttendanceApiService.cachedStatus != null) {
+      debugPrint('ATTENDANCE: Applying pre-loaded status');
+      final status = AttendanceApiService.cachedStatus!;
+      _applyStatusData(status); // Helper method to apply state
+      AttendanceApiService.cachedStatus = null; // Consume
+      usedCache = true;
+      setState(() {
+        _isLoading = false;
+      });
+    } else {
+      await _fetchAttendanceStatus();
+    }
+
     await _loadCachedServerTime(); // Set initial clock from cache (secure uptime)
-    await _checkLocation();
-    await _checkNetwork();
+
+    // 2. Apply Cached Validation
+    if (AttendanceApiService.cachedValidation != null) {
+      debugPrint('ATTENDANCE: Applying pre-loaded validation');
+      final val = AttendanceApiService.cachedValidation!;
+      setState(() {
+        _isLocationValid = val.isLocationValid;
+        _locationName = val.locationName;
+        _isNetworkValid = val.isNetworkValid;
+        _networkName = val.networkName;
+      });
+      AttendanceApiService.cachedValidation = null; // Consume
+    } else {
+      // Fallback to live check
+      await _checkLocation();
+      await _checkNetwork();
+    }
+  }
+
+  // Extracted helper to reuse logic
+  void _applyStatusData(Map<String, dynamic> status) {
+    setState(() {
+      _checkInTime =
+          status['check_in'] != null ? _formatTime(status['check_in']) : null;
+      _checkOutTime =
+          status['check_out'] != null ? _formatTime(status['check_out']) : null;
+
+      if (status['server_time'] != null) {
+        _serverTime = DateTime.tryParse(status['server_time'])?.toLocal();
+      }
+
+      // Calculate break duration if completed
+      if (status['break_in'] != null && status['break_out'] != null) {
+        try {
+          final breakIn = DateTime.parse(status['break_in']);
+          final breakOut = DateTime.parse(status['break_out']);
+          _breakDuration = breakOut.difference(breakIn);
+        } catch (e) {
+          _breakDuration = Duration.zero;
+        }
+      } else {
+        _breakDuration = Duration.zero;
+      }
+
+      // Determine current status and display times
+      if (status['check_out'] != null) {
+        _currentStatus = AttendanceStatus.shiftEnded;
+        _checkOutTime = _formatTime(status['check_out']);
+      } else if (status['break_in'] != null && status['break_out'] == null) {
+        _currentStatus = AttendanceStatus.onBreak;
+        // Use break_in time as "check out" for visual timer freezing
+        _checkOutTime = _formatTime(status['break_in']);
+      } else if (status['check_in'] != null) {
+        _currentStatus = AttendanceStatus.working;
+      } else {
+        _currentStatus = AttendanceStatus.idle;
+      }
+
+      // Capabilities logic
+      // If backend provides 'can_check_in' etc, use them?
+      // Logic currently relies on _currentStatus derivation above.
+      // Assuming status object structure matches what _fetchAttendanceStatus expects.
+    });
   }
 
   // ============ API INTEGRATION ============
@@ -116,48 +190,8 @@ class _AttendanceScreenState extends State<AttendanceScreen>
   Future<void> _fetchAttendanceStatus() async {
     try {
       final status = await AttendanceApiService.getStatus();
+      _applyStatusData(status);
       setState(() {
-        _checkInTime =
-            status['check_in'] != null ? _formatTime(status['check_in']) : null;
-        _checkOutTime = status['check_out'] != null
-            ? _formatTime(status['check_out'])
-            : null;
-
-        if (status['server_time'] != null) {
-          _serverTime = DateTime.tryParse(status['server_time'])?.toLocal();
-          // Note: Time is for display only; server handles all timestamps
-        }
-
-        // Calculate break duration if completed
-        if (status['break_in'] != null && status['break_out'] != null) {
-          try {
-            final breakIn = DateTime.parse(status['break_in']);
-            final breakOut = DateTime.parse(status['break_out']);
-            _breakDuration = breakOut.difference(breakIn);
-          } catch (e) {
-            _breakDuration = Duration.zero;
-          }
-        } else {
-          _breakDuration = Duration.zero;
-        }
-
-        // Determine current status and display times
-        if (status['check_out'] != null) {
-          _currentStatus = AttendanceStatus.shiftEnded;
-          _checkOutTime = _formatTime(status['check_out']);
-        } else if (status['break_in'] != null && status['break_out'] == null) {
-          _currentStatus = AttendanceStatus.onBreak;
-          // Use break_in time as "check out" for visual timer freezing
-          _checkOutTime = _formatTime(status['break_in']);
-        } else if (status['check_in'] != null) {
-          _currentStatus = AttendanceStatus.working;
-          _checkOutTime = null;
-        } else {
-          _currentStatus = AttendanceStatus.idle;
-          _checkOutTime = null;
-        }
-
-        // _selectedAction = _getSmartDefault(); // Manual override
         _isLoading = false;
       });
     } catch (e) {
@@ -677,30 +711,11 @@ class _AttendanceScreenState extends State<AttendanceScreen>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Debug Reset Button (Left)
+          // History Button (Left)
           IconButton(
-            icon: const Icon(Icons.restore, color: Colors.orange),
-            tooltip: 'Reset Attendance (Debug)',
-            onPressed: () async {
-              setState(() => _isLoading = true);
-              try {
-                await AttendanceApiService.resetAttendance();
-                await _fetchAttendanceStatus();
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Attendance data reset!')),
-                  );
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Reset failed: $e')),
-                  );
-                }
-              } finally {
-                if (mounted) setState(() => _isLoading = false);
-              }
-            },
+            icon: const Icon(Icons.history, color: AppColors.textPrimary),
+            tooltip: 'Attendance History',
+            onPressed: _showHistoryModal,
           ),
 
           // App Title
@@ -713,13 +728,40 @@ class _AttendanceScreenState extends State<AttendanceScreen>
             ),
           ),
 
-          // Refresh Button (Right)
-          IconButton(
-            icon: const Icon(Icons.refresh, color: AppColors.textPrimary),
-            onPressed: () {
-              // Trigger slight haptic feedback
-              _onRefresh();
-            },
+          // Actions (Right)
+          Row(
+            children: [
+              // Debug Reset Button
+              IconButton(
+                icon: const Icon(Icons.restore, color: Colors.orange),
+                tooltip: 'Reset Attendance (Debug)',
+                onPressed: () async {
+                  setState(() => _isLoading = true);
+                  try {
+                    await AttendanceApiService.resetAttendance();
+                    await _fetchAttendanceStatus();
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Attendance data reset!')),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Reset failed: $e')),
+                      );
+                    }
+                  } finally {
+                    if (mounted) setState(() => _isLoading = false);
+                  }
+                },
+              ),
+              // Refresh Button
+              IconButton(
+                icon: const Icon(Icons.refresh, color: AppColors.textPrimary),
+                onPressed: _onRefresh,
+              ),
+            ],
           ),
         ],
       ),
@@ -747,6 +789,167 @@ class _AttendanceScreenState extends State<AttendanceScreen>
           ),
         ],
       ),
+    );
+  }
+
+  // ============ HISTORY MODAL (VISUAL ONLY) ============
+
+  void _showHistoryModal() {
+    // Dummy Data
+    final history = [
+      {'date': '27 Jan 2026', 'in': '08:00', 'out': '17:00', 'state': 'Hadir'},
+      {'date': '26 Jan 2026', 'in': '08:15', 'out': '17:00', 'state': 'Telat'},
+      {'date': '25 Jan 2026', 'in': '--:--', 'out': '--:--', 'state': 'Alpha'},
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true, // Allow full height/scrolling
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        constraints: BoxConstraints(
+          maxHeight:
+              MediaQuery.of(context).size.height * 0.85, // Max 85% height
+        ),
+        padding: const EdgeInsets.all(20),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Brief History',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              ...history.map((record) => _buildHistoryCard(record)),
+              const SizedBox(height: 16),
+              Center(
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    // Navigate to full history page if available
+                  },
+                  child: const Text('View Full History'),
+                ),
+              ),
+              // Add bottom padding for safe area
+              SizedBox(height: MediaQuery.of(context).padding.bottom),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHistoryCard(Map<String, String> record) {
+    Color stateColor;
+    switch (record['state']) {
+      case 'Hadir':
+        stateColor = Colors.green;
+        break;
+      case 'Telat':
+        stateColor = Colors.orange;
+        break;
+      case 'Alpha':
+        stateColor = Colors.red;
+        break;
+      default:
+        stateColor = Colors.grey;
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Header with State Color
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: stateColor.withOpacity(0.1),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(12)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  record['date']!,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: stateColor,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    record['state']!,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Body
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildTimeColumn('Clock In', record['in']!),
+                Container(width: 1, height: 24, color: Colors.grey.shade300),
+                _buildTimeColumn('Clock Out', record['out']!),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimeColumn(String label, String time) {
+    return Column(
+      children: [
+        Text(
+          label,
+          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          time,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
+      ],
     );
   }
 }

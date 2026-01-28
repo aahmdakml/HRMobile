@@ -40,7 +40,9 @@ class _MainShellState extends State<MainShell> {
   Future<void> _syncAttendanceData() async {
     try {
       debugPrint('MAIN_SHELL: Syncing attendance locations...');
-      await AttendanceApiService.syncLocations();
+      // await AttendanceApiService.syncLocations();
+      // Optimization: Pre-load status and validation in background
+      await AttendanceApiService.preloadData();
       debugPrint('MAIN_SHELL: Sync complete');
     } catch (e) {
       debugPrint('MAIN_SHELL: Sync error: $e');
