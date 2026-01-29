@@ -54,6 +54,7 @@ class Employee {
   final String? position;
   final String? department;
   final String? company;
+  final String? companyId; // Added companyId
   final String? avatar;
   final String? phone;
 
@@ -64,6 +65,7 @@ class Employee {
     this.position,
     this.department,
     this.company,
+    this.companyId,
     this.avatar,
     this.phone,
   });
@@ -76,6 +78,9 @@ class Employee {
       position: json['position']?['pos_name'] ?? json['pos_name'],
       department: json['department']?['dept_name'] ?? json['dept_name'],
       company: json['company']?['comp_name'] ?? json['comp_name'],
+      companyId: json['company']?['company_id'] ??
+          json['emp_company_id'] ??
+          json['company_id'],
       avatar: json['emp_image'],
       phone: json['emp_phone'],
     );
@@ -88,6 +93,7 @@ class Employee {
         'pos_name': position,
         'dept_name': department,
         'comp_name': company,
+        'emp_company_id': companyId,
         'emp_image': avatar,
         'emp_phone': phone,
       };

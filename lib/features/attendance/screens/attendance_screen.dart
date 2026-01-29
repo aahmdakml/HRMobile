@@ -215,10 +215,13 @@ class _AttendanceScreenState extends State<AttendanceScreen>
   }
 
   Future<void> _checkLocation() async {
+    debugPrint('GPS: === Starting location check ===');
     try {
       // Check if location services are enabled
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      debugPrint('GPS: Service enabled: $serviceEnabled');
       if (!serviceEnabled) {
+        debugPrint('GPS: ❌ Location services disabled');
         setState(() {
           _isLocationValid = false;
           _locationName = 'GPS disabled';
@@ -228,9 +231,12 @@ class _AttendanceScreenState extends State<AttendanceScreen>
 
       // Check location permission
       LocationPermission permission = await Geolocator.checkPermission();
+      debugPrint('GPS: Permission status: $permission');
       if (permission == LocationPermission.denied) {
+        debugPrint('GPS: Requesting permission...');
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
+          debugPrint('GPS: ❌ Permission denied by user');
           setState(() {
             _isLocationValid = false;
             _locationName = 'Permission denied';
@@ -240,6 +246,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
       }
 
       if (permission == LocationPermission.deniedForever) {
+        debugPrint('GPS: ❌ Permission permanently denied');
         setState(() {
           _isLocationValid = false;
           _locationName = 'Permission blocked';
@@ -248,10 +255,13 @@ class _AttendanceScreenState extends State<AttendanceScreen>
       }
 
       // Get current position
+      debugPrint('GPS: Fetching current position...');
       _currentPosition = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
         timeLimit: const Duration(seconds: 10),
       );
+      debugPrint(
+          'GPS: ✓ Position obtained: ${_currentPosition!.latitude}, ${_currentPosition!.longitude}');
 
       // Fetch allowed locations and validate
       try {
@@ -263,7 +273,9 @@ class _AttendanceScreenState extends State<AttendanceScreen>
         String matchedLocation = 'Out of range';
         List<String> validLog = []; // distinct logs
 
-        print('DOCS: Received ${locations.length} locations');
+        debugPrint('DOCS: Received ${locations.length} locations');
+        debugPrint(
+            'GPS: Current Position: ${_currentPosition!.latitude}, ${_currentPosition!.longitude}');
 
         for (var location in locations) {
           final isEnableGps = location['is_enable_gps'] ?? true;
@@ -311,7 +323,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
           }
         }
 
-        // debugPrint('DOCS: Location Check: $validLog');
+        debugPrint('GPS: Final validation result: $validLog');
 
         setState(() {
           _isLocationValid = isValid;
@@ -319,6 +331,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
         });
       } catch (apiError) {
         // API error but GPS works
+        debugPrint('GPS: ❌ API Error in location validation: $apiError');
         String errorMsg = apiError.toString();
         if (errorMsg.contains('Exception:')) {
           errorMsg = errorMsg.split('Exception:').last.trim();
@@ -331,6 +344,8 @@ class _AttendanceScreenState extends State<AttendanceScreen>
         debugPrint('API Error Detail: $apiError');
       }
     } catch (e) {
+      debugPrint('GPS: ❌ OUTER CATCH - Location check failed: $e');
+      debugPrint('GPS: Error type: ${e.runtimeType}');
       setState(() {
         _isLocationValid = false;
         _locationName = 'GPS Error: ${e.toString().split(':').last.trim()}';
@@ -437,38 +452,71 @@ class _AttendanceScreenState extends State<AttendanceScreen>
   // ============ ACTIONS ============
 
   Future<void> _onRefresh() async {
+    debugPrint('ATTENDANCE: === Manual Refresh Triggered ===');
     setState(() => _isLoading = true);
 
-    // Sync locations from server on manual refresh (updates cache)
-    await AttendanceApiService.syncLocations();
+    try {
+      // CRITICAL: Sync locations from server to update cache
+      // This ensures GPS coordinates, WiFi MAC, and radius are up-to-date
+      debugPrint('ATTENDANCE: Syncing locations from server...');
 
+      await AttendanceApiService.syncLocations().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          debugPrint(
+              'ATTENDANCE: ⚠️ Location sync timeout (10s) - using cached data');
+          // Return empty list, getLocations will use cache
+          return [];
+        },
+      );
+
+      debugPrint('ATTENDANCE: ✓ Location sync complete');
+    } catch (e) {
+      debugPrint('ATTENDANCE: ⚠️ Location sync failed: $e - using cached data');
+      // Continue with cached data if sync fails
+    }
+
+    // Fetch fresh attendance status
     await _fetchAttendanceStatus();
+
+    // Re-validate location and network with fresh data
     await _checkLocation();
     await _checkNetwork();
+
+    setState(() => _isLoading = false);
+
+    debugPrint('ATTENDANCE: === Refresh Complete ===');
   }
 
   Future<void> _onAttendanceComplete() async {
+    debugPrint('ATTENDANCE: === Starting attendance action ===');
+    debugPrint('ATTENDANCE: Selected action: ${_selectedAction.name}');
+
     if (_currentPosition == null) {
+      debugPrint('ATTENDANCE: ❌ Current position is null');
       _showError('Unable to get location');
       return;
     }
+
+    debugPrint(
+        'ATTENDANCE: Position: ${_currentPosition!.latitude}, ${_currentPosition!.longitude}');
+
+    setState(() => _isLoading = true);
 
     try {
       Map<String, dynamic> result;
 
       switch (_selectedAction) {
         case AttendanceAction.checkIn:
+          debugPrint('ATTENDANCE: Calling checkIn API...');
           result = await AttendanceApiService.checkIn(
             latitude: _currentPosition!.latitude,
             longitude: _currentPosition!.longitude,
           );
-          setState(() {
-            _currentStatus = AttendanceStatus.working;
-            _checkInTime = result['check_time'];
-            _selectedAction = _getSmartDefault();
-          });
+          debugPrint('ATTENDANCE: ✓ checkIn response: $result');
           break;
         case AttendanceAction.breakOut:
+          debugPrint('ATTENDANCE: Calling breakIn API...');
           result = await AttendanceApiService.breakIn(
             latitude: _currentPosition!.latitude,
             longitude: _currentPosition!.longitude,
@@ -483,6 +531,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
           });
           break;
         case AttendanceAction.resume:
+          debugPrint('ATTENDANCE: Calling breakOut API...');
           result = await AttendanceApiService.breakOut(
             latitude: _currentPosition!.latitude,
             longitude: _currentPosition!.longitude,
@@ -517,14 +566,12 @@ class _AttendanceScreenState extends State<AttendanceScreen>
           });
           break;
         case AttendanceAction.checkOut:
+          debugPrint('ATTENDANCE: Calling checkOut API...');
           result = await AttendanceApiService.checkOut(
             latitude: _currentPosition!.latitude,
             longitude: _currentPosition!.longitude,
           );
-          setState(() {
-            _currentStatus = AttendanceStatus.shiftEnded;
-            _checkOutTime = result['check_time'];
-          });
+          debugPrint('ATTENDANCE: ✓ checkOut response: $result');
           break;
       }
 
@@ -532,7 +579,10 @@ class _AttendanceScreenState extends State<AttendanceScreen>
           result['message'] ?? '${_selectedAction.label} successful!';
       _showSuccessDialog(successMessage);
     } catch (e) {
+      debugPrint('ATTENDANCE: ❌ API Error: $e');
       _showError(e.toString().replaceAll('Exception: ', ''));
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
@@ -711,15 +761,11 @@ class _AttendanceScreenState extends State<AttendanceScreen>
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(10),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+      decoration: const BoxDecoration(
+        color: Colors.white, // White background
+        border: Border(
+          bottom: BorderSide(color: Color(0xFFE0E0E0), width: 1),
+        ),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -737,7 +783,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
+              color: AppColors.textPrimary, // Dark text
             ),
           ),
 
