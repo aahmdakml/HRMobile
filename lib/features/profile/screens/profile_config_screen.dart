@@ -411,7 +411,10 @@ class _ProfileConfigScreenState extends State<ProfileConfigScreen>
 
   Widget _buildAddressTab() {
     if (_addresses.isEmpty) {
-      return _buildEmptyState('No addresses found', 'Add Address');
+      return _buildEmptyState('No addresses found', 'Add Address', () async {
+        final result = await AddressFormSheet.show(context);
+        if (result == true) _loadProfileData();
+      });
     }
 
     return SingleChildScrollView(
@@ -450,7 +453,10 @@ class _ProfileConfigScreenState extends State<ProfileConfigScreen>
 
   Widget _buildContactTab() {
     if (_contacts.isEmpty && _emergencyContacts.isEmpty) {
-      return _buildEmptyState('No contacts found', 'Add Contact');
+      return _buildEmptyState('No contacts found', 'Add Contact', () async {
+        final result = await ContactFormSheet.show(context);
+        if (result == true) _loadProfileData();
+      });
     }
 
     return SingleChildScrollView(
@@ -637,7 +643,10 @@ class _ProfileConfigScreenState extends State<ProfileConfigScreen>
   Widget _buildEmergencyTab() {
     if (_emergencyContacts.isEmpty) {
       return _buildEmptyState(
-          'No emergency contacts found', 'Add Emergency Contact');
+          'No emergency contacts found', 'Add Emergency Contact', () async {
+        final result = await EmergencyContactFormSheet.show(context);
+        if (result == true) _loadProfileData();
+      });
     }
 
     return SingleChildScrollView(
@@ -714,7 +723,11 @@ class _ProfileConfigScreenState extends State<ProfileConfigScreen>
 
   Widget _buildFamilyTab() {
     if (_family.isEmpty) {
-      return _buildEmptyState('No family members found', 'Add Family Member');
+      return _buildEmptyState('No family members found', 'Add Family Member',
+          () async {
+        final result = await FamilyFormSheet.show(context);
+        if (result == true) _loadProfileData();
+      });
     }
 
     return SingleChildScrollView(
@@ -749,7 +762,11 @@ class _ProfileConfigScreenState extends State<ProfileConfigScreen>
 
   Widget _buildEducationTab() {
     if (_education.isEmpty) {
-      return _buildEmptyState('No education history found', 'Add Education');
+      return _buildEmptyState('No education history found', 'Add Education',
+          () async {
+        final result = await EducationFormSheet.show(context);
+        if (result == true) _loadProfileData();
+      });
     }
 
     return SingleChildScrollView(
@@ -784,7 +801,11 @@ class _ProfileConfigScreenState extends State<ProfileConfigScreen>
 
   Widget _buildSupportingFileTab() {
     if (_supportingFiles.isEmpty) {
-      return _buildEmptyState('No supporting files found', 'Upload File');
+      return _buildEmptyState('No supporting files found', 'Upload File',
+          () async {
+        final result = await SupportingFileFormSheet.show(context);
+        if (result == true) _loadProfileData();
+      });
     }
 
     return SingleChildScrollView(
@@ -1238,17 +1259,21 @@ class _ProfileConfigScreenState extends State<ProfileConfigScreen>
     );
   }
 
-  Widget _buildEmptyState(String message, String buttonText) {
+  Widget _buildEmptyState(
+      String message, String buttonText, VoidCallback onPressed) {
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.inbox_outlined, size: 48, color: AppColors.textMuted),
-          const SizedBox(height: 12),
-          Text(message, style: TextStyle(color: AppColors.textSecondary)),
-          const SizedBox(height: 16),
-          _buildAddButton(buttonText, () {}),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.inbox_outlined, size: 48, color: AppColors.textMuted),
+            const SizedBox(height: 12),
+            Text(message, style: TextStyle(color: AppColors.textSecondary)),
+            const SizedBox(height: 16),
+            _buildAddButton(buttonText, onPressed),
+          ],
+        ),
       ),
     );
   }
@@ -1327,31 +1352,36 @@ class _ProfileConfigScreenState extends State<ProfileConfigScreen>
   }
 
   Widget _buildFieldRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 120,
-            child: Text(
-              label,
-              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: AppColors.textPrimary,
+    return LayoutBuilder(builder: (context, constraints) {
+      // Use 35% of width for label, but min 100 max 160
+      final labelWidth = (constraints.maxWidth * 0.35).clamp(100.0, 160.0);
+
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: labelWidth,
+              child: Text(
+                label,
+                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
               ),
             ),
-          ),
-        ],
-      ),
-    );
+            Expanded(
+              child: Text(
+                value,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    });
   }
 
   Widget _buildFamilyMemberCard({
