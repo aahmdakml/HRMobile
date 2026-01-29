@@ -57,7 +57,7 @@ class _ProfileConfigScreenState extends State<ProfileConfigScreen>
       duration: const Duration(seconds: 4),
     )..repeat(reverse: true);
 
-    _breathingAnimation = Tween<double>(begin: 1.0, end: 1.5).animate(
+    _breathingAnimation = Tween<double>(begin: 1.0, end: 1.3).animate(
       CurvedAnimation(
         parent: _breathingController,
         curve: Curves.easeInOut,
