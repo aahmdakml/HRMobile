@@ -261,7 +261,7 @@ class _AttendanceButtonState extends State<AttendanceButton>
                 ),
                 child: Icon(
                   Icons.fingerprint,
-                  size: 56,
+                  size: 44,
                   color: Colors.white,
                 ),
               ),
