@@ -138,8 +138,9 @@ class _LeaveDetailModalState extends State<LeaveDetailModal> {
                         setState(() => _isDeleting = true);
                         try {
                           await widget.ref
-                              .read(leaveListProvider.notifier)
+                              .read(recentLeavesProvider.notifier)
                               .cancelLeave(leave.id);
+                          widget.ref.read(leaveListProvider.notifier).refresh();
                           if (mounted) {
                             Navigator.pop(context); // Close Modal
                             showDialog(

@@ -4,7 +4,6 @@ import 'package:mobile_app/core/theme/app_colors.dart';
 import 'package:mobile_app/features/leave/models/leave_model.dart';
 import 'package:mobile_app/features/leave/providers/leave_provider.dart';
 import 'package:mobile_app/features/leave/screens/leave_form_screen.dart';
-import 'package:mobile_app/features/leave/screens/leave_filter_modal.dart';
 import 'package:mobile_app/features/leave/widgets/leave_skeleton_widgets.dart';
 import 'package:mobile_app/features/leave/widgets/leave_card.dart';
 import 'package:mobile_app/features/leave/screens/leave_history_screen.dart';
@@ -19,7 +18,7 @@ class LeaveListScreen extends ConsumerStatefulWidget {
 class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
   @override
   Widget build(BuildContext context) {
-    final leaveState = ref.watch(leaveListProvider);
+    final leaveState = ref.watch(recentLeavesProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFF1E1E2D), // Deep Blue Background
@@ -48,50 +47,7 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
                   IconButton(
                     icon: const Icon(Icons.refresh, color: Colors.white),
                     onPressed: () =>
-                        ref.read(leaveListProvider.notifier).refresh(),
-                  ),
-                  Consumer(
-                    builder: (context, ref, child) {
-                      final filterState = ref.watch(leaveFilterProvider);
-                      final count = filterState.activeFilterCount;
-                      return Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.filter_list,
-                                color: Colors.white),
-                            onPressed: () {
-                              showModalBottomSheet(
-                                context: context,
-                                isScrollControlled: true,
-                                backgroundColor: Colors.transparent,
-                                builder: (context) => const LeaveFilterModal(),
-                              );
-                            },
-                          ),
-                          if (count > 0)
-                            Positioned(
-                              top: 8,
-                              right: 8,
-                              child: Container(
-                                padding: const EdgeInsets.all(4),
-                                decoration: const BoxDecoration(
-                                  color: Colors.red,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Text(
-                                  '$count',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
-                      );
-                    },
+                        ref.read(recentLeavesProvider.notifier).refresh(),
                   ),
                 ],
               ),
@@ -591,7 +547,7 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
           ),
           const SizedBox(height: 24),
           ElevatedButton.icon(
-            onPressed: () => ref.read(leaveListProvider.notifier).refresh(),
+            onPressed: () => ref.read(recentLeavesProvider.notifier).refresh(),
             icon: const Icon(Icons.refresh),
             label: const Text('Retry'),
           ),
