@@ -5,6 +5,7 @@ import 'package:mobile_app/core/theme/app_colors.dart';
 import 'package:mobile_app/features/home/screens/home_screen.dart';
 import 'package:mobile_app/features/analytics/screens/analytics_screen.dart';
 import 'package:mobile_app/features/attendance/screens/attendance_screen.dart';
+import 'package:mobile_app/core/services/attendance_api_service.dart';
 import 'package:mobile_app/features/profile/screens/profile_config_screen.dart';
 
 /// Main Shell - Bottom navigation with 4 tabs
