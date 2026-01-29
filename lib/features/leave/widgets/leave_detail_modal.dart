@@ -80,6 +80,7 @@ class _LeaveDetailModalState extends State<LeaveDetailModal> {
             ],
           ),
           const SizedBox(height: 16),
+          _buildDetailRow(Icons.tag, 'Request ID', leave.id),
           _buildDetailRow(Icons.category, 'Type',
               leave.timeOffType?.name ?? leave.timeoffCode),
           _buildDetailRow(Icons.calendar_today, 'Date',
