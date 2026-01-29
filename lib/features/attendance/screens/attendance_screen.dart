@@ -672,52 +672,68 @@ class _AttendanceScreenState extends State<AttendanceScreen>
         Scaffold(
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           body: SafeArea(
-            child: Column(
-              children: [
-                // ========== A. HEADER SECTION ==========
-                _buildHeader(),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                // Calculate dynamic sizes
+                final double availableHeight = constraints.maxHeight;
+                final double maxWidth = constraints.maxWidth;
 
-                // ========== MAIN CONTENT (Expanded to prevent overflow) ==========
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      // ========== A2. SECURITY CLUSTER ==========
-                      _buildSecurityCluster(),
+                // Target button size: 35% of free height or 60% of width, whichever is smaller
+                final double buttonSize =
+                    (availableHeight * 0.35).clamp(150.0, maxWidth * 0.65);
 
-                      // ========== B. TIME SECTION ==========
-                      LiveClock(serverTime: _serverTime),
+                return Column(
+                  children: [
+                    // ========== A. HEADER SECTION ==========
+                    _buildHeader(), // Fixed height
 
-                      // ========== C. STATUS SECTION ==========
-                      StatusBadge(
-                        status: _currentStatus,
-                        sinceTime: _checkInTime,
+                    // ========== A2. SECURITY CLUSTER ==========
+                    _buildSecurityCluster(), // Fixed height
+
+                    const Spacer(flex: 1),
+
+                    // ========== B. TIME SECTION ==========
+                    LiveClock(serverTime: _serverTime),
+
+                    const Spacer(flex: 1),
+
+                    // ========== C. STATUS SECTION ==========
+                    StatusBadge(
+                      status: _currentStatus,
+                      sinceTime: _checkInTime,
+                    ),
+
+                    const Spacer(flex: 1),
+
+                    // ========== D. MANUAL ACTION SELECTOR ==========
+                    Center(
+                      child: AttendanceTypeSelector(
+                        selectedAction: _selectedAction,
+                        currentStatus: _currentStatus,
+                        onActionSelected: (action) {
+                          setState(() => _selectedAction = action);
+                        },
+                        isEnabled: _isSecurityValid,
                       ),
+                    ),
 
-                      // ========== E. ACTION SECTION ==========
-                      Center(
-                        child: AttendanceButton(
-                          action: _selectedAction,
-                          isEnabled: _isSecurityValid,
-                          onComplete: _onAttendanceComplete,
-                        ),
-                      ),
+                    const Spacer(flex: 2),
 
-                      // ========== D. MANUAL ACTION SELECTOR ==========
-                      Center(
-                        child: AttendanceTypeSelector(
-                          selectedAction: _selectedAction,
-                          currentStatus: _currentStatus,
-                          onActionSelected: (action) {
-                            setState(() => _selectedAction = action);
-                          },
-                          isEnabled: _isSecurityValid,
-                        ),
+                    // ========== E. ACTION SECTION ==========
+                    Center(
+                      child: AttendanceButton(
+                        size: buttonSize, // Dynamic size
+                        action: _selectedAction,
+                        isEnabled: _isSecurityValid,
+                        onComplete: _onAttendanceComplete,
+                        onDisabledTap: _showSecurityError,
                       ),
-                    ],
-                  ),
-                ),
-              ],
+                    ),
+
+                    const Spacer(flex: 3),
+                  ],
+                );
+              },
             ),
           ),
           bottomNavigationBar: SafeArea(
