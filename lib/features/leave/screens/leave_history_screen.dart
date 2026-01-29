@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_app/features/leave/providers/leave_provider.dart';
 import 'package:mobile_app/features/leave/widgets/leave_skeleton_widgets.dart';
 import 'package:mobile_app/features/leave/widgets/leave_card.dart';
+import 'package:mobile_app/features/leave/screens/leave_filter_modal.dart';
 
 class LeaveHistoryScreen extends ConsumerWidget {
   const LeaveHistoryScreen({super.key});
@@ -24,6 +25,51 @@ class LeaveHistoryScreen extends ConsumerWidget {
           icon: const Icon(Icons.arrow_back_ios_new, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          Consumer(
+            builder: (context, ref, child) {
+              final filterState = ref.watch(leaveFilterProvider);
+              final count = filterState.activeFilterCount;
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.filter_list, color: Colors.black),
+                    onPressed: () {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (context) => const LeaveFilterModal(),
+                      );
+                    },
+                  ),
+                  if (count > 0)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          '$count',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: leaveState.when(
         data: (data) {

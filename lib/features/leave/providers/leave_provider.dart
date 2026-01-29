@@ -128,16 +128,24 @@ class LeaveListState {
 // Controller
 class LeaveListNotifier extends StateNotifier<AsyncValue<LeaveListState>> {
   final Ref ref;
+  final bool useFilters;
 
-  LeaveListNotifier(this.ref) : super(const AsyncValue.loading()) {
+  LeaveListNotifier(this.ref, {this.useFilters = true})
+      : super(const AsyncValue.loading()) {
     fetchLeaves();
   }
 
   Future<void> fetchLeaves() async {
     state = const AsyncValue.loading();
     try {
-      final filter = ref.read(leaveFilterProvider);
+      final filter =
+          useFilters ? ref.read(leaveFilterProvider) : const LeaveFilterState();
+
+      // View All (History) needs more items, Home only needs recent few
+      final limit = useFilters ? 100 : 10;
+
       final result = await LeaveService.getLeaves(
+        limit: limit,
         search: filter.search,
         status: filter.status,
         type: filter.typeCode,
@@ -169,20 +177,32 @@ class LeaveListNotifier extends StateNotifier<AsyncValue<LeaveListState>> {
   }
 }
 
-// Provider
+// Internal provider for filtered list (History)
+final _filteredLeaveListControllerProvider =
+    StateNotifierProvider<LeaveListNotifier, AsyncValue<LeaveListState>>((ref) {
+  return LeaveListNotifier(ref, useFilters: true);
+});
+
+// Internal provider for recent/unfiltered list (Home)
+final _recentLeaveListControllerProvider =
+    StateNotifierProvider<LeaveListNotifier, AsyncValue<LeaveListState>>((ref) {
+  return LeaveListNotifier(ref, useFilters: false);
+});
+
+// Public Provider with Filters (For History Screen)
 final leaveListProvider =
     StateNotifierProvider<LeaveListNotifier, AsyncValue<LeaveListState>>((ref) {
   // Listen to filter changes and re-fetch automatically
   ref.listen(leaveFilterProvider, (previous, next) {
     if (previous != next) {
-      ref.read(leaveListControllerProvider.notifier).fetchLeaves();
+      ref.read(_filteredLeaveListControllerProvider.notifier).fetchLeaves();
     }
   });
-  return ref.read(leaveListControllerProvider.notifier);
+  return ref.read(_filteredLeaveListControllerProvider.notifier);
 });
 
-// Internal provider to avoid circular dependency in constructor
-final leaveListControllerProvider =
+// Public Provider without Filters (For Home Screen / Recent)
+final recentLeavesProvider =
     StateNotifierProvider<LeaveListNotifier, AsyncValue<LeaveListState>>((ref) {
-  return LeaveListNotifier(ref);
+  return ref.read(_recentLeaveListControllerProvider.notifier);
 });
