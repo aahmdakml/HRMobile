@@ -9,6 +9,7 @@ class AttendanceFooter extends StatefulWidget {
   final String? checkOutTime; // e.g., "17:30"
   final AttendanceStatus status;
   final DateTime? serverTime; // Server time for accurate duration calculation
+  final Duration breakDuration; // Total break time to subtract
 
   const AttendanceFooter({
     super.key,
@@ -16,6 +17,7 @@ class AttendanceFooter extends StatefulWidget {
     this.checkOutTime,
     required this.status,
     this.serverTime,
+    this.breakDuration = Duration.zero,
   });
 
   @override
@@ -26,7 +28,8 @@ class _AttendanceFooterState extends State<AttendanceFooter> {
   Timer? _workingTimer;
   Duration _workingDuration = Duration.zero;
   DateTime? _startTime;
-  DateTime? _simulatedServerTime; // Ticks locally every second for smooth display
+  DateTime?
+      _simulatedServerTime; // Ticks locally every second for smooth display
 
   @override
   void initState() {
@@ -42,7 +45,8 @@ class _AttendanceFooterState extends State<AttendanceFooter> {
       _initializeTimer();
     }
     // Resync simulated time when fresh server time arrives (every ~5s)
-    if (widget.serverTime != null && widget.serverTime != oldWidget.serverTime) {
+    if (widget.serverTime != null &&
+        widget.serverTime != oldWidget.serverTime) {
       _simulatedServerTime = widget.serverTime;
     }
   }
@@ -50,22 +54,38 @@ class _AttendanceFooterState extends State<AttendanceFooter> {
   void _initializeTimer() {
     _workingTimer?.cancel();
 
-    if (widget.status == AttendanceStatus.working &&
-        widget.checkInTime != null) {
-      // Parse check-in time
+    if (widget.checkInTime != null) {
       _startTime = _parseTime(widget.checkInTime!);
-      // Initialize simulated server time
-      _simulatedServerTime = widget.serverTime ?? DateTime.now();
-      
-      if (_startTime != null) {
-        _updateWorkingDuration();
-        _workingTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-          // Tick simulated time forward by 1 second
-          if (_simulatedServerTime != null) {
-            _simulatedServerTime = _simulatedServerTime!.add(const Duration(seconds: 1));
+
+      if (widget.checkOutTime != null) {
+        // Freeze timer: Calculate static duration (CheckOut - CheckIn)
+        final endTime = _parseTime(widget.checkOutTime!);
+        if (_startTime != null && endTime != null) {
+          _workingDuration =
+              endTime.difference(_startTime!) - widget.breakDuration;
+          if (_workingDuration.isNegative) {
+            _workingDuration = Duration.zero;
           }
+        } else {
+          _workingDuration = Duration.zero;
+        }
+        _simulatedServerTime = null; // No need to tick
+      } else if (widget.status == AttendanceStatus.working) {
+        // Live timer: Tick every second
+        _simulatedServerTime = widget.serverTime ?? DateTime.now();
+        if (_startTime != null) {
           _updateWorkingDuration();
-        });
+          _workingTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+            if (_simulatedServerTime != null) {
+              _simulatedServerTime =
+                  _simulatedServerTime!.add(const Duration(seconds: 1));
+            }
+            _updateWorkingDuration();
+          });
+        }
+      } else {
+        _workingDuration = Duration.zero;
+        _simulatedServerTime = null;
       }
     } else {
       _workingDuration = Duration.zero;
@@ -77,8 +97,11 @@ class _AttendanceFooterState extends State<AttendanceFooter> {
     try {
       final parts = time.split(':');
       final now = DateTime.now();
-      return DateTime(now.year, now.month, now.day, int.parse(parts[0]),
-          int.parse(parts[1]));
+      final hours = int.parse(parts[0]);
+      final minutes = int.parse(parts[1]);
+      final seconds = parts.length > 2 ? int.parse(parts[2]) : 0;
+
+      return DateTime(now.year, now.month, now.day, hours, minutes, seconds);
     } catch (e) {
       return null;
     }
@@ -88,7 +111,11 @@ class _AttendanceFooterState extends State<AttendanceFooter> {
     if (_startTime != null && _simulatedServerTime != null) {
       // Use the simulated server time (immune to local time changes)
       setState(() {
-        _workingDuration = _simulatedServerTime!.difference(_startTime!);
+        _workingDuration = _simulatedServerTime!.difference(_startTime!) -
+            widget.breakDuration;
+        if (_workingDuration.isNegative) {
+          _workingDuration = Duration.zero;
+        }
       });
     }
   }
@@ -135,7 +162,8 @@ class _AttendanceFooterState extends State<AttendanceFooter> {
           _buildDivider(),
           _buildStatColumn(
             label: 'Working',
-            value: widget.status == AttendanceStatus.working
+            value: (widget.status == AttendanceStatus.working ||
+                    _workingDuration != Duration.zero)
                 ? _formatDuration(_workingDuration)
                 : '--:--:--',
             icon: Icons.timer,
@@ -145,7 +173,9 @@ class _AttendanceFooterState extends State<AttendanceFooter> {
           _buildDivider(),
           _buildStatColumn(
             label: 'Check Out',
-            value: widget.checkOutTime ?? '--:--',
+            value: widget.status == AttendanceStatus.shiftEnded
+                ? (widget.checkOutTime ?? '--:--')
+                : '--:--',
             icon: Icons.logout,
             color: AppColors.checkOut,
           ),
