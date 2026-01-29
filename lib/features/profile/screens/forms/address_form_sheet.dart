@@ -76,13 +76,103 @@ class _AddressFormSheetState extends State<AddressFormSheet> {
   Future<void> _loadEditData() async {
     if (widget.address == null) return;
 
+    final addr = widget.address!;
     setState(() => _isLoadingLocation = true);
 
-    // We need to parse province/city/district/village from address
-    // For now, user will need to re-select
-    // TODO: Implement proper location code parsing from address
+    try {
+      // 1. Set Province
+      String? provCode = addr.provinceCode;
 
-    setState(() => _isLoadingLocation = false);
+      // Fallback: Match by name if code is missing
+      if (provCode == null && addr.province != null && _provinces.isNotEmpty) {
+        final match = _provinces.firstWhere(
+          (p) =>
+              p['province_name'].toString().toLowerCase() ==
+              addr.province!.toLowerCase(),
+          orElse: () => {},
+        );
+        if (match.isNotEmpty) {
+          provCode = match['province_code'].toString();
+        }
+      }
+
+      if (provCode != null) {
+        setState(() => _selectedProvinceCode = provCode);
+
+        // 2. Load Cities
+        final citiesRes = await ProfileService.getCities(provCode);
+        if (citiesRes.success && citiesRes.data != null) {
+          setState(() => _cities = citiesRes.data!);
+
+          // 3. Set City
+          String? cityCode = addr.cityCode;
+          if (cityCode == null && addr.city != null) {
+            final match = _cities.firstWhere(
+              (c) =>
+                  c['regency_name'].toString().toLowerCase() ==
+                  addr.city!.toLowerCase(),
+              orElse: () => {},
+            );
+            if (match.isNotEmpty) cityCode = match['regency_code'].toString();
+          }
+
+          if (cityCode != null) {
+            setState(() => _selectedCityCode = cityCode);
+
+            // 4. Load Districts
+            final distRes =
+                await ProfileService.getDistricts(provCode, cityCode);
+            if (distRes.success && distRes.data != null) {
+              setState(() => _districts = distRes.data!);
+
+              // 5. Set District
+              String? distCode = addr.districtCode;
+              if (distCode == null && addr.district != null) {
+                final match = _districts.firstWhere(
+                  (d) =>
+                      d['district_name'].toString().toLowerCase() ==
+                      addr.district!.toLowerCase(),
+                  orElse: () => {},
+                );
+                if (match.isNotEmpty)
+                  distCode = match['district_code'].toString();
+              }
+
+              if (distCode != null) {
+                setState(() => _selectedDistrictCode = distCode);
+
+                // 6. Load Villages
+                final villRes = await ProfileService.getVillages(
+                    provCode, cityCode, distCode);
+                if (villRes.success && villRes.data != null) {
+                  setState(() {
+                    _villages = villRes.data!;
+
+                    // 7. Set Village
+                    String? villCode = addr.villageCode;
+                    if (villCode == null && addr.village != null) {
+                      final match = _villages.firstWhere(
+                        (v) =>
+                            v['village_name'].toString().toLowerCase() ==
+                            addr.village!.toLowerCase(),
+                        orElse: () => {},
+                      );
+                      if (match.isNotEmpty)
+                        villCode = match['village_code'].toString();
+                    }
+                    _selectedVillageCode = villCode;
+                  });
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading location data: $e');
+    } finally {
+      if (mounted) setState(() => _isLoadingLocation = false);
+    }
   }
 
   Future<void> _loadCities(String provinceCode) async {

@@ -24,7 +24,7 @@ class ContactFormSheet extends StatefulWidget {
 class _ContactFormSheetState extends State<ContactFormSheet> {
   final _formKey = GlobalKey<FormState>();
   late String _type;
-  late String _value;
+  late TextEditingController _valueController;
   late bool _isPrimary;
   bool _isLoading = false;
 
@@ -34,19 +34,25 @@ class _ContactFormSheetState extends State<ContactFormSheet> {
   void initState() {
     super.initState();
     _type = widget.contact?.type ?? 'PHONE';
-    _value = widget.contact?.value ?? '';
+    _valueController = TextEditingController(text: widget.contact?.value ?? '');
     _isPrimary = widget.contact?.isPrimary ?? false;
+  }
+
+  @override
+  void dispose() {
+    _valueController.dispose();
+    super.dispose();
   }
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
-    _formKey.currentState!.save();
+    // No need for save() since we use controller
 
     setState(() => _isLoading = true);
 
     final data = {
       'ec_type': _type,
-      'ec_value': _value,
+      'ec_value': _valueController.text.trim(),
       'ec_is_primary': _isPrimary,
     };
 
@@ -266,7 +272,9 @@ class _ContactFormSheetState extends State<ContactFormSheet> {
                     ),
                     const SizedBox(height: 8),
                     TextFormField(
-                      initialValue: _value,
+                      key: ValueKey(
+                          _type), // Force rebuild to switch keyboard type
+                      controller: _valueController,
                       keyboardType: _type == 'PHONE'
                           ? TextInputType.phone
                           : TextInputType.emailAddress,
@@ -295,12 +303,27 @@ class _ContactFormSheetState extends State<ContactFormSheet> {
                         if (value == null || value.trim().isEmpty) {
                           return 'Please enter ${_type == 'PHONE' ? 'phone number' : 'email'}';
                         }
-                        if (_type == 'EMAIL' && !value.contains('@')) {
-                          return 'Please enter a valid email';
+
+                        if (_type == 'EMAIL') {
+                          final emailRegex =
+                              RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                          if (!emailRegex.hasMatch(value)) {
+                            return 'Please enter a valid email address';
+                          }
+                        }
+
+                        if (_type == 'PHONE') {
+                          // Allow numbers, spaces, dashed, and plus sign
+                          final phoneRegex = RegExp(r'^[0-9+\-\s]+$');
+                          if (!phoneRegex.hasMatch(value)) {
+                            return 'Please enter a valid phone number';
+                          }
+                          if (value.length < 8) {
+                            return 'Phone number too short';
+                          }
                         }
                         return null;
                       },
-                      onSaved: (value) => _value = value?.trim() ?? '',
                     ),
 
                     const SizedBox(height: 16),

@@ -33,9 +33,6 @@ class _PersonalDataFormSheetState extends State<PersonalDataFormSheet> {
   late TextEditingController _addressController;
 
   String? _gender;
-  String? _religion;
-  String? _maritalStatus;
-  String? _bloodType;
 
   @override
   void initState() {
@@ -50,28 +47,6 @@ class _PersonalDataFormSheetState extends State<PersonalDataFormSheet> {
     _addressController = TextEditingController(text: widget.data?.address);
 
     _gender = widget.data?.gender;
-    _religion = _normalizeValue(widget.data?.religion, [
-      'Islam',
-      'Kristen',
-      'Katolik',
-      'Hindu',
-      'Buddha',
-      'Konghucu',
-      'Lainnya'
-    ]);
-    _maritalStatus = _normalizeValue(widget.data?.maritalStatus,
-        ['Single', 'Married', 'Divorced', 'Widowed']);
-    _bloodType =
-        _normalizeValue(widget.data?.bloodType, ['A', 'B', 'AB', 'O', '-']);
-  }
-
-  String? _normalizeValue(String? value, List<String> options) {
-    if (value == null) return null;
-    try {
-      return options.firstWhere((e) => e.toUpperCase() == value.toUpperCase());
-    } catch (_) {
-      return null;
-    }
   }
 
   @override
@@ -108,16 +83,14 @@ class _PersonalDataFormSheetState extends State<PersonalDataFormSheet> {
 
     final data = {
       'emp_full_name': _nameController.text,
-      'emp_ktp': _ktpController.text, // Assuming this is correct
-      'emp_npwp': _npwpController.text, // Assuming this is correct
+      'emp_nik': widget.data?.nik ?? '',
+      'emp_ktp': _ktpController.text,
+      'emp_npwp': _npwpController.text,
       'emp_birth_place': _birthPlaceController.text,
       'emp_birth_date': _birthDateController.text,
       'emp_gender': _gender,
-      'emp_religion': _religion,
-      'emp_marital_status': _maritalStatus,
-      'emp_blood_type': _bloodType,
-      'emp_phone': _phoneController.text,
-      'emp_address': _addressController.text,
+      // 'emp_phone': _phoneController.text, // Managed via Contact Form
+      // 'emp_address': _addressController.text, // Managed via Address Form
     };
 
     final result = await ProfileService.updatePersonalData(data);
@@ -291,130 +264,54 @@ class _PersonalDataFormSheetState extends State<PersonalDataFormSheet> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Gender & Blood Type
-                    Row(
+                    // Gender
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildLabel('Gender'),
-                              DropdownButtonFormField<String>(
-                                value: _gender,
-                                decoration:
-                                    _inputDecoration('Gender', Icons.wc),
-                                items: const [
-                                  DropdownMenuItem(
-                                      value: 'M', child: Text('Male')),
-                                  DropdownMenuItem(
-                                      value: 'F', child: Text('Female')),
-                                ],
-                                onChanged: (v) => setState(() => _gender = v),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildLabel('Blood Type'),
-                              DropdownButtonFormField<String>(
-                                value: _bloodType,
-                                decoration:
-                                    _inputDecoration('Blood', Icons.bloodtype),
-                                items: ['A', 'B', 'AB', 'O', '-']
-                                    .map((e) => DropdownMenuItem(
-                                        value: e, child: Text(e)))
-                                    .toList(),
-                                onChanged: (v) =>
-                                    setState(() => _bloodType = v),
-                              ),
-                            ],
-                          ),
+                        _buildLabel('Gender'),
+                        DropdownButtonFormField<String>(
+                          value: _gender,
+                          decoration: _inputDecoration('Gender', Icons.wc),
+                          items: const [
+                            DropdownMenuItem(value: 'M', child: Text('Male')),
+                            DropdownMenuItem(value: 'F', child: Text('Female')),
+                          ],
+                          onChanged: (v) => setState(() => _gender = v),
                         ),
                       ],
                     ),
                     const SizedBox(height: 16),
 
-                    // Religion & Marital Status
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildLabel('Religion'),
-                              DropdownButtonFormField<String>(
-                                value: _religion,
-                                decoration:
-                                    _inputDecoration('Religion', Icons.mosque),
-                                items: [
-                                  'Islam',
-                                  'Kristen',
-                                  'Katolik',
-                                  'Hindu',
-                                  'Buddha',
-                                  'Konghucu',
-                                  'Lainnya'
-                                ]
-                                    .map((e) => DropdownMenuItem(
-                                        value: e, child: Text(e)))
-                                    .toList(),
-                                onChanged: (v) => setState(() => _religion = v),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildLabel('Marital Status'),
-                              DropdownButtonFormField<String>(
-                                value: _maritalStatus,
-                                decoration: _inputDecoration(
-                                    'Status', Icons.family_restroom),
-                                items: [
-                                  'Single',
-                                  'Married',
-                                  'Divorced',
-                                  'Widowed'
-                                ]
-                                    .map((e) => DropdownMenuItem(
-                                        value: e, child: Text(e)))
-                                    .toList(),
-                                onChanged: (v) =>
-                                    setState(() => _maritalStatus = v),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Phone
+                    // Phone (Read Only)
                     _buildLabel('Phone Number'),
                     TextFormField(
                       controller: _phoneController,
-                      keyboardType: TextInputType.phone,
-                      decoration:
-                          _inputDecoration('Enter phone number', Icons.phone),
-                      validator: (v) => v?.isEmpty == true ? 'Required' : null,
+                      readOnly: true,
+                      enabled: false,
+                      decoration: _inputDecoration(
+                        'Managed via Contact',
+                        Icons.phone,
+                      ).copyWith(
+                        helperText: 'Phone can be updated in Contact menu',
+                        fillColor: Colors.grey[200],
+                      ),
                     ),
                     const SizedBox(height: 16),
 
-                    // Address
+                    // Address (Read Only)
                     _buildLabel('KTP Address'),
                     TextFormField(
                       controller: _addressController,
                       maxLines: 3,
-                      decoration:
-                          _inputDecoration('Enter full address', Icons.home),
-                      validator: (v) => v?.isEmpty == true ? 'Required' : null,
+                      readOnly: true,
+                      enabled: false,
+                      decoration: _inputDecoration(
+                        'Managed via Address',
+                        Icons.home,
+                      ).copyWith(
+                        helperText: 'Address can be updated in Address menu',
+                        fillColor: Colors.grey[200],
+                      ),
                     ),
 
                     const SizedBox(height: 24),

@@ -29,22 +29,13 @@ class _EducationFormSheetState extends State<EducationFormSheet> {
   late TextEditingController _endYearController;
   late TextEditingController _gpaController;
 
-  String _level = 'S1';
-  bool _isLoading = false;
+  List<MasterOption> _levelOptions = [];
+  List<Major> _majorOptions = [];
 
-  // Education level options
-  final List<Map<String, String>> _levelOptions = [
-    {'id': 'SD', 'name': 'SD (Elementary)'},
-    {'id': 'SMP', 'name': 'SMP (Junior High)'},
-    {'id': 'SMA', 'name': 'SMA/SMK (Senior High)'},
-    {'id': 'D1', 'name': 'D1 (Diploma 1)'},
-    {'id': 'D2', 'name': 'D2 (Diploma 2)'},
-    {'id': 'D3', 'name': 'D3 (Diploma 3)'},
-    {'id': 'D4', 'name': 'D4 (Diploma 4)'},
-    {'id': 'S1', 'name': 'S1 (Bachelor)'},
-    {'id': 'S2', 'name': 'S2 (Master)'},
-    {'id': 'S3', 'name': 'S3 (Doctoral)'},
-  ];
+  String? _selectedMajorId;
+  String _level = '';
+  bool _isLoading = false;
+  bool _isStillStudy = false;
 
   bool get isEdit => widget.education != null;
 
@@ -61,8 +52,56 @@ class _EducationFormSheetState extends State<EducationFormSheet> {
         TextEditingController(text: widget.education?.endYear ?? '');
     _gpaController = TextEditingController(text: widget.education?.gpa ?? '');
 
+    // infer isStillStudy if endYear is empty/null but startYear is set?
+    // Or just default to false unless end year is explicitly empty on an edit.
+    if (isEdit) {
+      _isStillStudy = widget.education?.endYear == null ||
+          widget.education!.endYear!.isEmpty;
+    }
+
+    // Load levels
+    _loadLevels();
+
     if (widget.education != null) {
       _level = widget.education!.level;
+      // We need to load majors for this level to show the dropdown correctly
+      _loadMajors(_level);
+    }
+  }
+
+  Future<void> _loadLevels() async {
+    final res = await ProfileService.getMasterOptions('EDUCATION_OPTION');
+    if (res.success && res.data != null) {
+      if (mounted) {
+        setState(() {
+          _levelOptions = res.data!;
+          // Set default if creating new
+          if (_level.isEmpty && _levelOptions.isNotEmpty && !isEdit) {
+            _level = _levelOptions.first.id;
+            _loadMajors(_level);
+          }
+        });
+      }
+    }
+  }
+
+  Future<void> _loadMajors(String levelCode) async {
+    final res = await ProfileService.getMajors(levelCode);
+    if (res.success && res.data != null) {
+      if (mounted) {
+        setState(() {
+          _majorOptions = res.data!;
+          // Try to match existing major name to an ID if we have one
+          if (widget.education?.major != null) {
+            final match = _majorOptions
+                .where((m) => m.name == widget.education!.major)
+                .firstOrNull;
+            if (match != null) {
+              _selectedMajorId = match.id.toString();
+            }
+          }
+        });
+      }
     }
   }
 
@@ -83,12 +122,14 @@ class _EducationFormSheetState extends State<EducationFormSheet> {
 
     final data = {
       'edu_level': _level,
-      'institution_id': 1, // Default institution ID - ideally from dropdown
+      'institution_id': 34, // Default "Other" if manual
       'institution_name': _institutionController.text.trim(),
-      'major_id': 1, // Default major ID - ideally from dropdown
-      'major_name': _majorController.text.trim(),
+      'major_id': _selectedMajorId,
+      'major_name': _selectedMajorId == null
+          ? _majorController.text.trim()
+          : null, // Send name if manual (fallback)
       'edu_start': _startYearController.text.trim(),
-      'edu_end': _endYearController.text.trim(),
+      'edu_end': _isStillStudy ? null : _endYearController.text.trim(),
       'edu_gpa': _gpaController.text.trim().isEmpty
           ? null
           : double.tryParse(_gpaController.text.trim()),
@@ -207,14 +248,25 @@ class _EducationFormSheetState extends State<EducationFormSheet> {
                     // Level
                     _buildLabel('Education Level'),
                     DropdownButtonFormField<String>(
-                      value: _level,
+                      value: _levelOptions.any((l) => l.id == _level)
+                          ? _level
+                          : null,
                       decoration: _inputDecoration(
                           'Select level', Icons.school_outlined),
                       items: _levelOptions.map((l) {
                         return DropdownMenuItem(
-                            value: l['id'], child: Text(l['name']!));
+                            value: l.id, child: Text(l.name));
                       }).toList(),
-                      onChanged: (v) => setState(() => _level = v ?? 'S1'),
+                      onChanged: (v) {
+                        if (v != null) {
+                          setState(() {
+                            _level = v;
+                            _selectedMajorId = null; // Reset major
+                            _majorOptions = [];
+                          });
+                          _loadMajors(v);
+                        }
+                      },
                     ),
 
                     const SizedBox(height: 16),
@@ -233,12 +285,35 @@ class _EducationFormSheetState extends State<EducationFormSheet> {
 
                     // Major
                     _buildLabel('Major / Field of Study'),
-                    TextFormField(
-                      controller: _majorController,
-                      decoration: _inputDecoration('Enter major', Icons.book),
-                      validator: (v) =>
-                          v?.trim().isEmpty == true ? 'Required' : null,
-                    ),
+                    if (_majorOptions.isNotEmpty)
+                      DropdownButtonFormField<String>(
+                        value: _selectedMajorId != null &&
+                                _majorOptions.any(
+                                    (m) => m.id.toString() == _selectedMajorId)
+                            ? _selectedMajorId
+                            : null,
+                        decoration:
+                            _inputDecoration('Select Major', Icons.book),
+                        items: _majorOptions.map((m) {
+                          return DropdownMenuItem(
+                              value: m.id.toString(),
+                              child: Text(
+                                m.name.length > 30
+                                    ? '${m.name.substring(0, 30)}...'
+                                    : m.name,
+                                overflow: TextOverflow.ellipsis,
+                              ));
+                        }).toList(),
+                        onChanged: (v) => setState(() => _selectedMajorId = v),
+                        validator: (v) => v == null ? 'Required' : null,
+                      )
+                    else
+                      TextFormField(
+                        controller: _majorController,
+                        decoration: _inputDecoration('Enter major', Icons.book),
+                        validator: (v) =>
+                            v?.trim().isEmpty == true ? 'Required' : null,
+                      ),
 
                     const SizedBox(height: 16),
 
@@ -270,16 +345,44 @@ class _EducationFormSheetState extends State<EducationFormSheet> {
                               _buildLabel('End Year'),
                               TextFormField(
                                 controller: _endYearController,
+                                enabled: !_isStillStudy,
                                 keyboardType: TextInputType.number,
                                 decoration: _inputDecoration(
-                                    'YYYY', Icons.calendar_today),
-                                validator: (v) => v?.trim().isEmpty == true
-                                    ? 'Required'
-                                    : null,
+                                  'YYYY',
+                                  Icons.calendar_today,
+                                ).copyWith(
+                                  fillColor: _isStillStudy
+                                      ? Colors.grey[200]
+                                      : Colors.grey[100],
+                                ),
+                                validator: (v) {
+                                  if (_isStillStudy) return null;
+                                  return v?.trim().isEmpty == true
+                                      ? 'Required'
+                                      : null;
+                                },
                               ),
                             ],
                           ),
                         ),
+                      ],
+                    ),
+
+                    // Still Studying Checkbox
+                    Row(
+                      children: [
+                        Checkbox(
+                          value: _isStillStudy,
+                          onChanged: (val) {
+                            setState(() {
+                              _isStillStudy = val ?? false;
+                              if (_isStillStudy) {
+                                _endYearController.clear();
+                              }
+                            });
+                          },
+                        ),
+                        const Text('I am still studying here'),
                       ],
                     ),
 

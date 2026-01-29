@@ -526,6 +526,62 @@ class ProfileService {
       return ProfileResult.failure('Connection error');
     }
   }
+  // ============ Master Data Methods ============
+
+  static Future<ProfileResult<List<MasterOption>>> getMasterOptions(
+      String type) async {
+    try {
+      final response =
+          await apiClient.get('/master/trx_type', queryParameters: {
+        'type': type,
+      });
+      if (response.statusCode == 200) {
+        final data = response.data['data'] as List? ?? [];
+        return ProfileResult.success(
+            data.map((e) => MasterOption.fromJson(e)).toList());
+      }
+      return ProfileResult.failure('Failed to load options');
+    } catch (e) {
+      debugPrint('PROFILE ERROR: $e');
+      return ProfileResult.failure('Connection error');
+    }
+  }
+
+  static Future<ProfileResult<List<Major>>> getMajors(String typeCode) async {
+    try {
+      final response = await apiClient.get('/master/major', queryParameters: {
+        'code': typeCode,
+      });
+      if (response.statusCode == 200) {
+        final data = response.data['data'] as List? ?? [];
+        return ProfileResult.success(
+            data.map((e) => Major.fromJson(e)).toList());
+      }
+      return ProfileResult.failure('Failed to load majors');
+    } catch (e) {
+      debugPrint('PROFILE ERROR: $e');
+      return ProfileResult.failure('Connection error');
+    }
+  }
+
+  static Future<ProfileResult<List<Institution>>> getInstitutions(
+      String query) async {
+    try {
+      final response =
+          await apiClient.get('/master/institution', queryParameters: {
+        'search': query,
+      });
+      if (response.statusCode == 200) {
+        final data = response.data['data'] as List? ?? [];
+        return ProfileResult.success(
+            data.map((e) => Institution.fromJson(e)).toList());
+      }
+      return ProfileResult.failure('Failed to load institutions');
+    } catch (e) {
+      debugPrint('PROFILE ERROR: $e');
+      return ProfileResult.failure('Connection error');
+    }
+  }
 }
 
 /// Generic result wrapper
@@ -547,6 +603,7 @@ class ProfileResult<T> {
 class PersonalData {
   final String empId;
   final String name;
+  final String? nik;
   final String? email;
   final String? phone;
   final String? birthDate;
@@ -562,6 +619,7 @@ class PersonalData {
   PersonalData({
     required this.empId,
     required this.name,
+    this.nik,
     this.email,
     this.phone,
     this.birthDate,
@@ -583,10 +641,11 @@ class PersonalData {
       phone: json['emp_tlp'] ?? json['emp_phone'],
       birthDate: json['emp_birth_date'],
       birthPlace: json['emp_birth_place'],
+      nik: json['emp_nik'],
       gender: json['emp_gender'],
       religion: json['emp_religion'],
       maritalStatus: json['emp_marital_status'],
-      bloodType: json['emp_blood_type'],
+      bloodType: json['emp_blood'] ?? json['emp_blood_type'],
       ktp: json['emp_ktp'],
       npwp: json['emp_npwp'],
       address: json['emp_address'],
@@ -603,6 +662,10 @@ class Address {
   final String? province;
   final String? district;
   final String? village;
+  final String? provinceCode;
+  final String? cityCode;
+  final String? districtCode;
+  final String? villageCode;
   final String? postalCode;
   final bool isPrimary;
 
@@ -614,6 +677,10 @@ class Address {
     this.province,
     this.district,
     this.village,
+    this.provinceCode,
+    this.cityCode,
+    this.districtCode,
+    this.villageCode,
     this.postalCode,
     this.isPrimary = false,
   });
@@ -621,14 +688,62 @@ class Address {
   factory Address.fromJson(Map<String, dynamic> json) {
     return Address(
       id: json['ed_id'] ?? json['id'] ?? 0,
-      type: json['addr_type'] ?? '', // Vue doesn't show type, but backend might
+      type: json['addr_type'] ?? '',
       address: json['ed_address'] ?? json['address'] ?? '',
       city: json['regency']?['regency_name'] ?? json['addr_city'],
       province: json['province']?['province_name'] ?? json['addr_province'],
       district: json['district']?['district_name'],
       village: json['village']?['village_name'],
+      provinceCode: json['province_code']?.toString(),
+      cityCode: json['regency_code']?.toString(),
+      districtCode: json['district_code']?.toString(),
+      villageCode: json['village_code']?.toString(),
       postalCode: json['ed_zip_code'] ?? json['postal_code'],
       isPrimary: json['ed_is_primary'] == 1 || json['ed_is_primary'] == true,
+    );
+  }
+}
+
+class MasterOption {
+  final String id;
+  final String name;
+
+  MasterOption({required this.id, required this.name});
+
+  factory MasterOption.fromJson(Map<String, dynamic> json) {
+    return MasterOption(
+      id: json['trx_id'] ?? '',
+      name: json['trx_name'] ?? '',
+    );
+  }
+}
+
+class Major {
+  final int id;
+  final String name;
+  final String code;
+
+  Major({required this.id, required this.name, required this.code});
+
+  factory Major.fromJson(Map<String, dynamic> json) {
+    return Major(
+      id: json['major_id'] ?? 0,
+      name: json['major_name'] ?? '',
+      code: json['major_code'] ?? '',
+    );
+  }
+}
+
+class Institution {
+  final int id;
+  final String name;
+
+  Institution({required this.id, required this.name});
+
+  factory Institution.fromJson(Map<String, dynamic> json) {
+    return Institution(
+      id: json['institution_id'] ?? 0,
+      name: json['institution_name'] ?? '',
     );
   }
 }
@@ -662,7 +777,11 @@ class Family {
   final String relationship;
   final String? birthDate;
   final String? gender;
-  final bool isBpjsCovered;
+  final bool coverBpjs;
+  final String? education;
+  final String? phone;
+  final String? address;
+  final String? occupation;
 
   Family({
     required this.id,
@@ -670,7 +789,11 @@ class Family {
     required this.relationship,
     this.birthDate,
     this.gender,
-    this.isBpjsCovered = false,
+    this.coverBpjs = false,
+    this.education,
+    this.phone,
+    this.address,
+    this.occupation,
   });
 
   factory Family.fromJson(Map<String, dynamic> json) {
@@ -681,8 +804,11 @@ class Family {
           json['relationship']?['trx_name'] ?? json['fam_relationship'] ?? '',
       birthDate: json['ef_birthday'] ?? json['fam_birth_date'],
       gender: json['ef_gender'],
-      isBpjsCovered:
-          json['ef_cover_bpjs'] == 1 || json['ef_cover_bpjs'] == true,
+      coverBpjs: json['ef_cover_bpjs'] == 1 || json['ef_cover_bpjs'] == true,
+      education: json['ef_education'],
+      phone: json['ef_phone'],
+      address: json['ef_address'],
+      occupation: json['ef_occupation'],
     );
   }
 }

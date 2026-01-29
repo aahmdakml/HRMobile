@@ -742,17 +742,18 @@ class _ProfileConfigScreenState extends State<ProfileConfigScreen>
                   relationship: member.relationship,
                   birthDate: member.birthDate ?? '-',
                   gender: member.gender,
-                  isBpjsCovered: member.isBpjsCovered,
+                  isBpjsCovered: member.coverBpjs,
                   onEdit: () async {
-                    final result =
-                        await FamilyFormSheet.show(context, family: member);
+                    final result = await FamilyFormSheet.show(context,
+                        family: member, existingFamily: _family);
                     if (result == true) _loadProfileData();
                   },
                 ),
               )),
           const SizedBox(height: 8),
           _buildAddButton('Add Family Member', () async {
-            final result = await FamilyFormSheet.show(context);
+            final result =
+                await FamilyFormSheet.show(context, existingFamily: _family);
             if (result == true) _loadProfileData();
           }),
         ],
@@ -1458,22 +1459,23 @@ class _ProfileConfigScreenState extends State<ProfileConfigScreen>
                               fontWeight: FontWeight.bold),
                         ),
                       ),
-                    if (isBpjsCovered)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.green.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: const Text(
-                          'BPJS',
-                          style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.green,
-                              fontWeight: FontWeight.bold),
-                        ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: isBpjsCovered
+                            ? Colors.green.withOpacity(0.1)
+                            : Colors.grey.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(4),
                       ),
+                      child: Text(
+                        isBpjsCovered ? 'BPJS Covered' : 'Non-BPJS',
+                        style: TextStyle(
+                            fontSize: 10,
+                            color: isBpjsCovered ? Colors.green : Colors.grey,
+                            fontWeight: FontWeight.bold),
+                      ),
+                    ),
                   ],
                 )
               ],
