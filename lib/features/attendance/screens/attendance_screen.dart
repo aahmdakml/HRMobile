@@ -141,18 +141,28 @@ class _AttendanceScreenState extends State<AttendanceScreen>
 
   // Extracted helper to reuse logic
   void _applyStatusData(Map<String, dynamic> status) {
+    // Helper to check if a time string is valid (not null/empty)
+    bool hasTime(dynamic val) {
+      if (val == null) return false;
+      if (val is String) {
+        return val.trim().isNotEmpty && val != 'null';
+      }
+      return false;
+    }
+
     setState(() {
       _checkInTime =
-          status['check_in'] != null ? _formatTime(status['check_in']) : null;
-      _checkOutTime =
-          status['check_out'] != null ? _formatTime(status['check_out']) : null;
+          hasTime(status['check_in']) ? _formatTime(status['check_in']) : null;
+      _checkOutTime = hasTime(status['check_out'])
+          ? _formatTime(status['check_out'])
+          : null;
 
       if (status['server_time'] != null) {
         _serverTime = DateTime.tryParse(status['server_time'])?.toLocal();
       }
 
       // Calculate break duration if completed
-      if (status['break_in'] != null && status['break_out'] != null) {
+      if (hasTime(status['break_in']) && hasTime(status['break_out'])) {
         try {
           final breakIn = DateTime.parse(status['break_in']);
           final breakOut = DateTime.parse(status['break_out']);
@@ -165,23 +175,21 @@ class _AttendanceScreenState extends State<AttendanceScreen>
       }
 
       // Determine current status and display times
-      if (status['check_out'] != null) {
+      if (hasTime(status['check_out'])) {
         _currentStatus = AttendanceStatus.shiftEnded;
         _checkOutTime = _formatTime(status['check_out']);
-      } else if (status['break_in'] != null && status['break_out'] == null) {
+      } else if (hasTime(status['break_in']) && !hasTime(status['break_out'])) {
         _currentStatus = AttendanceStatus.onBreak;
         // Use break_in time as "check out" for visual timer freezing
         _checkOutTime = _formatTime(status['break_in']);
-      } else if (status['check_in'] != null) {
+      } else if (hasTime(status['check_in'])) {
         _currentStatus = AttendanceStatus.working;
       } else {
         _currentStatus = AttendanceStatus.idle;
       }
 
-      // Capabilities logic
-      // If backend provides 'can_check_in' etc, use them?
-      // Logic currently relies on _currentStatus derivation above.
-      // Assuming status object structure matches what _fetchAttendanceStatus expects.
+      // Update the smart default action based on the new status
+      _selectedAction = _getSmartDefault();
     });
   }
 
@@ -514,6 +522,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
             longitude: _currentPosition!.longitude,
           );
           debugPrint('ATTENDANCE: ✓ checkIn response: $result');
+          await _fetchAttendanceStatus(); // Auto-refresh state
           break;
         case AttendanceAction.breakOut:
           debugPrint('ATTENDANCE: Calling breakIn API...');
@@ -572,6 +581,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
             longitude: _currentPosition!.longitude,
           );
           debugPrint('ATTENDANCE: ✓ checkOut response: $result');
+          await _fetchAttendanceStatus(); // Auto-refresh state
           break;
       }
 
