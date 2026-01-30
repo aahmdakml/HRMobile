@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:mobile_app/core/theme/app_colors.dart';
 import 'package:mobile_app/core/services/profile_service.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 /// Bottom sheet form for adding/editing supporting files
 class SupportingFileFormSheet extends StatefulWidget {
@@ -17,49 +17,6 @@ class SupportingFileFormSheet extends StatefulWidget {
       backgroundColor: Colors.transparent,
       builder: (context) => SupportingFileFormSheet(file: file),
     );
-  }
-
-  /// Open file for viewing
-  static Future<void> viewFile(BuildContext context, int fileId) async {
-    // Show loading
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(),
-      ),
-    );
-
-    final result = await ProfileService.getSupportingFileUrl(fileId);
-
-    if (context.mounted) {
-      Navigator.pop(context); // Close loading
-    }
-
-    if (result.success && result.data != null && result.data!.isNotEmpty) {
-      final uri = Uri.parse(result.data!);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Cannot open file'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    } else {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result.error ?? 'Failed to get file URL'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
   }
 
   @override
@@ -96,38 +53,130 @@ class _SupportingFileFormSheetState extends State<SupportingFileFormSheet> {
   }
 
   Future<void> _pickFile() async {
-    try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'],
-      );
-
-      if (result != null && result.files.isNotEmpty) {
-        setState(() {
-          _selectedFilePath = result.files.single.path;
-          _selectedFileName = result.files.single.name;
-        });
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error picking file: $e'),
-          backgroundColor: Colors.red,
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
         ),
-      );
-    }
+      ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Upload Attachment',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildUploadOption(
+                    icon: Icons.camera_alt,
+                    label: 'Camera',
+                    onTap: () async {
+                      Navigator.pop(context);
+                      try {
+                        final picker = ImagePicker();
+                        final XFile? photo = await picker.pickImage(
+                          source: ImageSource.camera,
+                          maxWidth: 1024,
+                          imageQuality: 80,
+                        );
+
+                        if (photo != null) {
+                          setState(() {
+                            _selectedFilePath = photo.path;
+                            _selectedFileName = photo.name;
+                          });
+                        }
+                      } catch (e) {
+                        _showError('Camera error: $e');
+                      }
+                    },
+                  ),
+                  _buildUploadOption(
+                    icon: Icons.folder,
+                    label: 'File / Gallery',
+                    onTap: () async {
+                      Navigator.pop(context);
+                      try {
+                        final result = await FilePicker.platform.pickFiles(
+                          type: FileType.custom,
+                          allowedExtensions: [
+                            'pdf',
+                            'doc',
+                            'docx',
+                            'jpg',
+                            'jpeg',
+                            'png'
+                          ],
+                        );
+
+                        if (result != null && result.files.isNotEmpty) {
+                          setState(() {
+                            _selectedFilePath = result.files.single.path;
+                            _selectedFileName = result.files.single.name;
+                          });
+                        }
+                      } catch (e) {
+                        _showError('File picker error: $e');
+                      }
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildUploadOption({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: AppColors.primary, size: 32),
+          ),
+          const SizedBox(height: 8),
+          Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
+        ],
+      ),
+    );
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      ),
+    );
   }
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
 
     if (!isEdit && _selectedFilePath == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a file'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showError('Please select a file');
       return;
     }
 
@@ -161,12 +210,7 @@ class _SupportingFileFormSheetState extends State<SupportingFileFormSheet> {
       );
       Navigator.pop(context, true);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result.error ?? 'Failed to save file'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showError(result.error ?? 'Failed to save file');
     }
   }
 
@@ -447,7 +491,7 @@ class _SupportingFileFormSheetState extends State<SupportingFileFormSheet> {
         text,
         style: TextStyle(
           fontSize: 14,
-          fontWeight: FontWeight.w500,
+          fontWeight: FontWeight.w600,
           color: AppColors.textPrimary,
         ),
       ),

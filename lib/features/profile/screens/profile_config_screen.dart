@@ -9,6 +9,7 @@ import 'package:mobile_app/features/profile/screens/forms/family_form_sheet.dart
 import 'package:mobile_app/features/profile/screens/forms/education_form_sheet.dart';
 import 'package:mobile_app/features/profile/screens/forms/supporting_file_form_sheet.dart';
 import 'package:mobile_app/features/profile/screens/forms/personal_data_form_sheet.dart';
+import 'package:mobile_app/features/leave/widgets/document_viewer_screen.dart';
 
 /// Profile Config Screen - Full profile with API data
 /// Reference: /api/v1/hris/profile/*
@@ -825,9 +826,7 @@ class _ProfileConfigScreenState extends State<ProfileConfigScreen>
                         await SupportingFileFormSheet.show(context, file: file);
                     if (result == true) _loadProfileData();
                   },
-                  onView: () {
-                    SupportingFileFormSheet.viewFile(context, file.id);
-                  },
+                  onView: () => _viewSupportingFile(file),
                 ),
               )),
           const SizedBox(height: 8),
@@ -838,6 +837,63 @@ class _ProfileConfigScreenState extends State<ProfileConfigScreen>
         ],
       ),
     );
+  }
+
+  Future<void> _viewSupportingFile(SupportingFile file) async {
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(color: Colors.white),
+      ),
+    );
+
+    try {
+      final result = await ProfileService.getSupportingFileUrl(file.id);
+
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+      }
+
+      if (result.success && result.data != null) {
+        if (!mounted) return;
+
+        final url = result.data!;
+        final fileType = file.fileName.split('.').last.toLowerCase();
+
+        // Navigate to Viewer
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DocumentViewerScreen(
+              url: url,
+              fileName: file.fileName,
+              fileType: fileType,
+            ),
+          ),
+        );
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result.error ?? 'Failed to open file'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog if error
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   // ============ Card Builders (Uniform Style) ============
