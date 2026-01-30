@@ -4,6 +4,7 @@ import 'package:mobile_app/core/theme/app_colors.dart';
 import 'package:mobile_app/features/permission/providers/permission_provider.dart';
 import 'package:mobile_app/features/permission/screens/permission_history_screen.dart';
 import 'package:mobile_app/features/permission/widgets/permission_card.dart';
+import 'package:mobile_app/features/leave/widgets/leave_skeleton_widgets.dart';
 import 'package:mobile_app/features/permission/screens/permission_form_screen.dart';
 
 class PermissionListScreen extends ConsumerStatefulWidget {
@@ -15,6 +16,15 @@ class PermissionListScreen extends ConsumerStatefulWidget {
 }
 
 class _PermissionListScreenState extends ConsumerState<PermissionListScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Auto-refresh when entering the screen
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(recentPermissionsProvider.notifier).refresh();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final permissionState = ref.watch(recentPermissionsProvider);
@@ -80,8 +90,7 @@ class _PermissionListScreenState extends ConsumerState<PermissionListScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) =>
-                                  const PermissionFormScreen(),
+                              builder: (context) => PermissionFormScreen(),
                             ),
                           );
                         },
@@ -159,8 +168,11 @@ class _PermissionListScreenState extends ConsumerState<PermissionListScreen> {
                           },
                         );
                       },
-                      loading: () => const Center(
-                          child: CircularProgressIndicator()), // TODO: Skeleton
+                      loading: () => const Padding(
+                        padding: EdgeInsets.only(bottom: 20),
+                        child:
+                            SkeletonLeaveList(), // Using StartLine to determine context, logic to replace loading state
+                      ),
                       error: (err, stack) => Center(child: Text('Error: $err')),
                     ),
                   ],
