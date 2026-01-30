@@ -17,6 +17,15 @@ class LeaveListScreen extends ConsumerStatefulWidget {
 
 class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
   @override
+  void initState() {
+    super.initState();
+    // Auto-refresh when entering the screen to ensure sync
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(recentLeavesProvider.notifier).refresh();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final leaveState = ref.watch(recentLeavesProvider);
 
