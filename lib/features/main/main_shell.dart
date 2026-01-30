@@ -5,6 +5,7 @@ import 'package:mobile_app/core/theme/app_colors.dart';
 import 'package:mobile_app/features/home/screens/home_screen.dart';
 import 'package:mobile_app/features/analytics/screens/analytics_screen.dart';
 import 'package:mobile_app/features/attendance/screens/attendance_screen.dart';
+import 'package:mobile_app/core/services/attendance_api_service.dart';
 import 'package:mobile_app/features/profile/screens/profile_config_screen.dart';
 
 /// Main Shell - Bottom navigation with 4 tabs
@@ -40,9 +41,10 @@ class _MainShellState extends State<MainShell> {
   Future<void> _syncAttendanceData() async {
     try {
       debugPrint('MAIN_SHELL: Syncing attendance locations...');
-      // TEMPORARILY DISABLED - Causing app crashes after merge
       // await AttendanceApiService.syncLocations();
-      debugPrint('MAIN_SHELL: Sync skipped (disabled)');
+      // Optimization: Pre-load status and validation in background
+      await AttendanceApiService.preloadData();
+      debugPrint('MAIN_SHELL: Sync complete');
     } catch (e) {
       debugPrint('MAIN_SHELL: Sync error: $e');
     }

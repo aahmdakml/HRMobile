@@ -8,6 +8,7 @@ import 'package:mobile_app/features/profile/screens/profile_screen.dart';
 import 'package:mobile_app/features/home/screens/all_modules_screen.dart';
 import 'package:mobile_app/features/home/screens/edit_featured_screen.dart';
 import 'package:mobile_app/features/leave/screens/leave_list_screen.dart';
+import 'package:mobile_app/features/permission/screens/permission_list_screen.dart';
 
 /// Home Screen (Dashboard) - Gojek-style with customizable featured modules
 /// Uses RoleMenuConfig for role-based module access
@@ -591,6 +592,13 @@ class _HomeScreenState extends State<HomeScreen> {
     if (module.id == 'leave') {
       Navigator.of(context).push(
         MaterialPageRoute(builder: (_) => const LeaveListScreen()),
+      );
+      return;
+    }
+
+    if (module.id == 'permission') {
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const PermissionListScreen()),
       );
       return;
     }

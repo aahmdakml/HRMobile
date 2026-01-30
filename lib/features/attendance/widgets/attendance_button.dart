@@ -14,14 +14,19 @@ class AttendanceButton extends StatefulWidget {
   final AttendanceAction action;
   final bool isEnabled;
   final VoidCallback? onComplete;
+  final VoidCallback?
+      onDisabledTap; // Called when button is tapped while disabled
   final Duration holdDuration;
+  final double size; // Dynamic size
 
   const AttendanceButton({
     super.key,
     required this.action,
     this.isEnabled = true,
     this.onComplete,
+    this.onDisabledTap,
     this.holdDuration = const Duration(milliseconds: 2000),
+    this.size = 200, // Default for backward compatibility
   });
 
   @override
@@ -112,6 +117,7 @@ class _AttendanceButtonState extends State<AttendanceButton>
     if (!widget.isEnabled) {
       _triggerCancelPulse();
       _hapticFail();
+      widget.onDisabledTap?.call(); // Show error dialog
       return;
     }
 
@@ -189,7 +195,7 @@ class _AttendanceButtonState extends State<AttendanceButton>
 
   @override
   Widget build(BuildContext context) {
-    const double size = 160; // Scaled down from 200
+    final double size = widget.size;
 
     return AnimatedBuilder(
       animation: Listenable.merge([_scaleAnimation, _cancelPulseAnimation]),
